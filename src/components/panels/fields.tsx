@@ -151,3 +151,104 @@ export function Select<T extends string | number>({
     </select>
   );
 }
+
+/** Pill-style single choice, e.g. Every hour / day / week. */
+export function Segmented<T extends string | number>({
+  value,
+  onChange,
+  options,
+  size = "md",
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string; title?: string }[];
+  size?: "sm" | "md";
+}) {
+  return (
+    <div className="flex w-full rounded-full bg-sand p-1">
+      {options.map((o) => (
+        <button
+          key={String(o.value)}
+          type="button"
+          title={o.title}
+          onClick={() => onChange(o.value)}
+          className={`flex-1 rounded-full font-medium transition ${size === "sm" ? "py-1 text-[12.5px]" : "py-1.5 text-[13.5px]"} ${
+            o.value === value ? "bg-paper text-ink shadow-[0_1px_3px_rgb(46_31_31/0.15)]" : "text-muted hover:text-ink"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
+
+/** "HH:MM" picker as two dropdowns with friendly 12-hour labels. */
+export function TimeSelect({ value, onChange, minuteOnly }: { value: string; onChange: (v: string) => void; minuteOnly?: boolean }) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value ?? "");
+  const h = m ? Number(m[1]) : 9;
+  const min = m ? Number(m[2]) : 0;
+  const minutes = [0, 15, 30, 45].includes(min) ? [0, 15, 30, 45] : [0, 15, 30, 45, min].sort((a, b) => a - b);
+  return (
+    <div className="flex items-center gap-2">
+      {!minuteOnly && (
+        <div className="min-w-0 flex-1">
+          <select value={h} onChange={(e) => onChange(`${pad(Number(e.target.value))}:${pad(min)}`)} className={inputCls}>
+            {Array.from({ length: 24 }, (_, i) => (
+              <option key={i} value={i}>
+                {hourLabel(i)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {!minuteOnly && <span className="text-muted">:</span>}
+      <div className={minuteOnly ? "min-w-0 flex-1" : "w-[96px] shrink-0"}>
+        <select value={min} onChange={(e) => onChange(`${pad(h)}:${pad(Number(e.target.value))}`)} className={inputCls}>
+          {minutes.map((x) => (
+            <option key={x} value={x}>
+              {minuteOnly ? `:${pad(x)} past the hour` : pad(x)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+/** − value + control for small whole numbers. */
+export function Stepper({
+  value,
+  onChange,
+  min = 1,
+  max = 120,
+  step = 5,
+  suffix,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  suffix?: string;
+}) {
+  const clamp = (v: number) => Math.max(min, Math.min(max, v));
+  const btn = "grid size-9 place-items-center rounded-full text-[18px] leading-none text-ink-2 hover:bg-sand disabled:opacity-30";
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full bg-paper p-1 ring-1 ring-line-strong">
+      <button type="button" className={btn} onClick={() => onChange(clamp(value - step))} disabled={value <= min} aria-label="Less">
+        −
+      </button>
+      <span className="min-w-[72px] text-center text-[15px] font-semibold tabular-nums">
+        {value}
+        {suffix && <span className="ml-1 font-normal text-muted">{suffix}</span>}
+      </span>
+      <button type="button" className={btn} onClick={() => onChange(clamp(value + step))} disabled={value >= max} aria-label="More">
+        +
+      </button>
+    </div>
+  );
+}

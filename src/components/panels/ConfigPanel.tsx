@@ -4,10 +4,10 @@ import { Plus, Trash2, X } from "lucide-react";
 import type { ExtractType } from "@/engine/ai";
 import { OPS } from "@/engine/conditions";
 import { NODES, type ExtractConfig, type FilterConfig, type SwitchConfig } from "@/engine/nodes";
-import { WEEKDAYS } from "@/engine/schedule";
+import { WEEKDAYS, describeSchedule, type ScheduleConfig } from "@/engine/schedule";
 import type { Condition, Config, FieldInfo, Level, WfNode } from "@/engine/types";
 import { CATEGORY_WORD, NODE_ICON, tileStyle } from "../canvas/icons";
-import { FieldSelect, Label, Section, Select, TemplateInput, inputCls } from "./fields";
+import { FieldSelect, Label, Section, Segmented, Select, TemplateInput, TimeSelect, inputCls } from "./fields";
 
 interface Props {
   node: WfNode;
@@ -99,29 +99,33 @@ function Editor({
       const freq = str(c, "frequency") || "day";
       return (
         <>
-          <Section label="Runs">
-            <Select
+          <Section label="How often">
+            <Segmented
               value={freq}
               onChange={(v) => onChange({ frequency: v })}
               options={[
-                { value: "hour", label: "Every hour" },
-                { value: "day", label: "Every day" },
-                { value: "week", label: "Every week" },
+                { value: "hour", label: "Hourly" },
+                { value: "day", label: "Daily" },
+                { value: "week", label: "Weekly" },
               ]}
             />
           </Section>
           {freq === "week" && (
-            <Section label="On">
-              <Select
+            <Section label="Which day">
+              <Segmented
+                size="sm"
                 value={Number(c.weekday ?? 1)}
                 onChange={(v) => onChange({ weekday: v })}
-                options={WEEKDAYS.map((d, i) => ({ value: i, label: d }))}
+                options={WEEKDAYS.map((d, i) => ({ value: i, label: d.slice(0, 2), title: d }))}
               />
             </Section>
           )}
-          <Section label={freq === "hour" ? "At minute" : "At"} hint="24-hour time">
-            <input type="time" value={str(c, "time")} onChange={(e) => onChange({ time: e.target.value })} className={inputCls} />
+          <Section label={freq === "hour" ? "At" : "What time"}>
+            <TimeSelect value={str(c, "time")} onChange={(v) => onChange({ time: v })} minuteOnly={freq === "hour"} />
           </Section>
+          <div className="mb-5 rounded bg-cream px-3 py-2 text-[13px] text-ink-2">
+            Runs <b className="font-semibold">{describeSchedule(c as unknown as ScheduleConfig).replace(/^Every/, "every")}</b>
+          </div>
           <Section label="Fields this trigger gives you">
             <FieldList names={["fired_at", "weekday", "time"]} />
           </Section>
@@ -168,7 +172,12 @@ function Editor({
             />
           </Section>
           <Section label="Add up a field" hint="optional">
-            <FieldSelect value={str(c, "sumField")} onChange={(v) => onChange({ sumField: v })} fields={fields} placeholder="Don't add anything up" />
+            <FieldSelect
+              value={str(c, "sumField")}
+              onChange={(v) => onChange({ sumField: v })}
+              fields={fields}
+              placeholder="Don't add anything up"
+            />
           </Section>
           <Note>
             Many items in, one item out with <Code>count</Code>, <Code>lines</Code> (one line per item)
@@ -252,15 +261,19 @@ function Editor({
                     placeholder="field name"
                     className={`${inputCls}`}
                   />
-                  <select
-                    value={f.type}
-                    onChange={(ev) => onChange({ fields: list.map((x, j) => (j === i ? { ...x, type: ev.target.value as ExtractType } : x)) })}
-                    className={`${inputCls} w-[96px] shrink-0`}
-                  >
-                    <option value="text">text</option>
-                    <option value="number">number</option>
-                    <option value="list">list</option>
-                  </select>
+                  <div className="w-[104px] shrink-0">
+                    <select
+                      value={f.type}
+                      onChange={(ev) =>
+                        onChange({ fields: list.map((x, j) => (j === i ? { ...x, type: ev.target.value as ExtractType } : x)) })
+                      }
+                      className={inputCls}
+                    >
+                      <option value="text">text</option>
+                      <option value="number">number</option>
+                      <option value="list">list</option>
+                    </select>
+                  </div>
                   <IconBtn onClick={() => onChange({ fields: list.filter((_, j) => j !== i) })} disabled={list.length <= 1} />
                 </div>
               ))}
@@ -351,12 +364,12 @@ function ConditionsEditor({ cfg, fields, onChange }: { cfg: FilterConfig; fields
     <>
       {conds.length > 1 && (
         <Section label="Pass when">
-          <Select
+          <Segmented
             value={cfg.match ?? "all"}
             onChange={(v) => onChange({ match: v })}
             options={[
-              { value: "all", label: "ALL conditions are true" },
-              { value: "any", label: "ANY condition is true" },
+              { value: "all", label: "All are true" },
+              { value: "any", label: "Any is true" },
             ]}
           />
         </Section>

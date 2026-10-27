@@ -38,10 +38,11 @@ export function fireTimes(cfg: ScheduleConfig, window: { startWeekday: number; d
   return fires;
 }
 
+const clock12 = (h: number, m: number) => `${h % 12 === 0 ? 12 : h % 12}:${pad(m)} ${h < 12 ? "AM" : "PM"}`;
+
 export function describeSchedule(cfg: ScheduleConfig): string {
   const { h, m } = parseTime(cfg.time);
-  const t = `${pad(h)}:${pad(m)}`;
   if (cfg.frequency === "hour") return `Every hour at :${pad(m)}`;
-  if (cfg.frequency === "day") return `Every day at ${t}`;
-  return `Every ${WEEKDAYS[Number(cfg.weekday)] ?? "week"} at ${t}`;
+  if (cfg.frequency === "day") return `Every day at ${clock12(h, m)}`;
+  return `Every ${WEEKDAYS[Number(cfg.weekday)] ?? "week"} at ${clock12(h, m)}`;
 }

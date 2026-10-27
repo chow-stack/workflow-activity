@@ -7,6 +7,8 @@ import { formatClock, secondsLeft, useLeaderboardData, useNow, useSession } from
 import { standings } from "@/lib/scoring";
 import { Logo } from "./ui";
 
+const TOP = 10; // rows that fit on a projector
+
 const PHASE_LABEL = { lobby: "Waiting to start", running: "Live", paused: "Paused", ended: "Final standings" } as const;
 
 export function BoardScreen() {
@@ -47,9 +49,9 @@ export function BoardScreen() {
       {phase === "lobby" ? (
         <div className="my-auto text-center">
           <div className="eyebrow">Workflow Lab</div>
-          <h1 className="display mt-3 text-[64px] leading-tight">Grab a laptop. Pick a captain.</h1>
+          <h1 className="display mt-3 text-[64px] leading-tight">Grab a laptop and join in.</h1>
           <p className="mt-3 text-[24px] text-ink-2">
-            Go to <span className="font-semibold text-crimson">{host}</span> and create your team.
+            Go to <span className="font-semibold text-crimson">{host}</span> and enter your name.
           </p>
           <div className="mx-auto mt-12 flex max-w-5xl flex-wrap justify-center gap-3">
             {teams.map((t) => (
@@ -57,14 +59,14 @@ export function BoardScreen() {
                 {t.name}
               </span>
             ))}
-            {teams.length === 0 && <span className="text-[18px] text-muted">No teams yet.</span>}
+            {teams.length === 0 && <span className="text-[18px] text-muted">No players yet.</span>}
           </div>
         </div>
       ) : (
         <>
           <div className="mt-10 mb-3 grid grid-cols-[64px_1fr_auto_150px] items-end gap-6 px-6 text-[13px] font-semibold tracking-[0.06em] text-muted uppercase">
             <span>#</span>
-            <span>Team</span>
+            <span>Player</span>
             <span className="flex gap-3">
               {LEVELS.map((l) => (
                 <span key={l.id} className="w-9 text-center">
@@ -75,15 +77,15 @@ export function BoardScreen() {
             <span className="text-right">Points</span>
           </div>
           <ol className="space-y-2">
-            {rows.map((r, i) => (
+            {rows.slice(0, TOP).map((r, i) => (
               <li
                 key={r.team.id}
-                className={`grid grid-cols-[64px_1fr_auto_150px] items-center gap-6 rounded-lg px-6 py-4 ${
+                className={`grid grid-cols-[64px_1fr_auto_150px] items-center gap-6 rounded-lg px-6 py-3 ${
                   i === 0 && r.points > 0 ? "bg-crimson-soft ring-2 ring-crimson/40" : "bg-paper ring-1 ring-line"
                 }`}
               >
                 <span className={`display text-[34px] ${i < 3 && r.points > 0 ? "text-crimson" : "text-faint"}`}>{i + 1}</span>
-                <span className="truncate text-[26px] font-semibold">{r.team.name}</span>
+                <span className="truncate text-[24px] font-semibold">{r.team.name}</span>
                 <span className="flex gap-3">
                   {LEVELS.map((l) => (
                     <span
@@ -98,10 +100,17 @@ export function BoardScreen() {
               </li>
             ))}
           </ol>
-          {rows.length === 0 && <p className="mt-10 text-center text-[20px] text-muted">No teams yet.</p>}
+          {rows.length === 0 && <p className="mt-10 text-center text-[20px] text-muted">No players yet.</p>}
+          {rows.length > TOP && (
+            <p className="mt-3 px-6 text-[17px] text-muted">
+              + {rows.length - TOP} more {rows.length - TOP === 1 ? "player" : "players"} · check your own screen for your score
+            </p>
+          )}
 
           <footer className="mt-auto flex items-center gap-4 pt-8 text-[17px] text-muted">
-            <span>Max {MAX_POINTS.toLocaleString()} pts · hints cost 25%</span>
+            <span>
+              {rows.length} {rows.length === 1 ? "player" : "players"} · max {MAX_POINTS.toLocaleString()} pts · hints cost 25%
+            </span>
             {ticker && (
               <span key={ticker.key} className="animate-rise ml-auto rounded-full bg-ink px-5 py-2 font-medium text-paper">
                 {ticker.text}
@@ -114,7 +123,7 @@ export function BoardScreen() {
   );
 }
 
-/** "Team X just cleared Level 6" for the newest completion. */
+/** "Maya just cleared Level 6" for the newest completion. */
 function useTicker(
   completions: { team_id: string; level: number; skipped: boolean; completed_at: string }[],
   teams: { id: string; name: string }[],
@@ -129,7 +138,7 @@ function useTicker(
     const first = seen.current === 0;
     seen.current = t;
     if (first) return;
-    const name = teams.find((x) => x.id === latest.team_id)?.name ?? "A team";
+    const name = teams.find((x) => x.id === latest.team_id)?.name ?? "Someone";
     setMsg({ key: `${latest.team_id}-${latest.level}`, text: `${name} just cleared Level ${latest.level}` });
     const id = window.setTimeout(() => setMsg(null), 8000);
     return () => window.clearTimeout(id);

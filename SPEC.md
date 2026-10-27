@@ -1,6 +1,6 @@
 # Workflow Activity — Build Spec
 
-Gen AI Club automation meeting. Teams build automation workflows on a Zapier-style canvas, run them against hidden test cases, and climb a live leaderboard. Eight graded levels.
+Gen AI Club automation meeting. Players build automation workflows on a Zapier-style canvas, run them against hidden test cases, and climb a live leaderboard. Eight graded levels.
 
 Status: v2 · 2026-10-27 (boss round and host passcode removed; Zapier-style light redesign)
 
@@ -11,7 +11,7 @@ Status: v2 · 2026-10-27 (boss round and host passcode removed; Zapier-style lig
 | Topic | Decision |
 |---|---|
 | Format | ~10 min talk → ~35–40 min graded levels → wrap-up |
-| Teams | Groups of 3–4. **One team captain per team** runs the platform on one laptop; the rest of the team talks it through. No join codes, no member accounts. |
+| Players | **Solo:** each person joins with their own name on their own laptop (pairs can share one name if someone has no laptop). No accounts. Internally a player is still a row in `teams`. |
 | AI | **Fully simulated.** No live model calls, no API keys. AI blocks return fixed answers per test input. |
 | Grading | By **output**, not by graph shape. Any workflow that produces the right Slack messages / emails / sheet rows passes. |
 | Execution | Entirely client-side (browser). |
@@ -42,8 +42,8 @@ Status: v2 · 2026-10-27 (boss round and host passcode removed; Zapier-style lig
 
 | Route | Who | Purpose |
 |---|---|---|
-| `/` | Captain | Create team (team name only) or rejoin an existing team by name |
-| `/play` | Captain | Level brief + canvas + config panel + results |
+| `/` | Player | Join with your name, or pick up where you left off |
+| `/play` | Player | Level brief + canvas + config panel + results |
 | `/board` | Projector | Live leaderboard and countdown |
 | `/host` | Organizer | Open controls (no passcode): start / pause / +5 min / end / reset |
 
@@ -52,7 +52,7 @@ Stored in Supabase `session` row; every client subscribes via Realtime.
 
 | Phase | `/play` shows | `/board` shows |
 |---|---|---|
-| `lobby` | "Waiting for the host to start" + team name | Joined teams list |
+| `lobby` | "Waiting for the host to start" + player name | Joined players list |
 | `running` | Levels 1–8, countdown to `ends_at` | Leaderboard + countdown |
 | `ended` | Final score, read-only | Final standings |
 
@@ -60,15 +60,15 @@ Host can pause (`running` → `paused`, stores remaining seconds) and resume.
 
 ---
 
-## 4. Team flow
+## 4. Player flow
 
-1. Captain opens `/`, types a team name, clicks **Create team**. Insert into `teams`; names are unique (case-insensitive). Taken name → inline error.
+1. Player opens `/`, types their name (e.g. "Maya P."), clicks **Start**. Insert into `teams`; names are unique (case-insensitive). Taken name → "add your last initial".
 2. `team_id` + name stored in `localStorage`. Revisiting `/` with a stored team skips straight to `/play`.
-3. **Rejoin** (laptop died / different browser): enter exact team name → fetch team id → completed levels restored from `completions`. Unsaved canvas work for the current level is lost. No auth; acceptable for a club meeting.
+3. **Pick up where you left off** (laptop died / different browser): enter the exact name → fetch team id → completed levels restored from `completions`. Unsaved canvas work for the current level is lost. No auth; acceptable for a club meeting.
 4. Levels unlock in order. Solved levels can be reopened (read-only score, editable canvas).
 5. **Skip**: available after both hints are used on a level. Skipped = 0 points, next level unlocks.
 
-### localStorage (per team)
+### localStorage (per player)
 `team`, `currentLevel`, `workflows[levelId]` (nodes + edges JSON, autosaved debounced 500ms), `hintsUsed[levelId]`.
 
 ---
@@ -410,6 +410,9 @@ Zapier's system, light mode only, with genaiiu.com's logo and colors. Tokens liv
 - **Canvas:** cream dotted grid; steps are paper cards with a tinted icon, "N · Category" label, name, and a one-line summary or an amber to-do ("Pick a sheet."). Edges turn crimson and show item counts during a run.
 
 ### 10.1 Making it easy to follow
+- **Top bar:** level stepper, countdown (turns crimson at 5 min, pulses in the last minute), points and live rank ("#3 of 41").
+- **Board:** top 10 players plus "+N more"; everyone sees their own rank on their screen.
+- **Controls:** dropdowns share one styled chevron; schedule uses Hourly/Daily/Weekly and weekday pills plus hour/minute dropdowns in 12-hour time; filter All/Any is a toggle; host minutes is a − / + stepper.
 - **Level intro card** the first time a level opens: situation → task (highlighted) → "You're done when" checklist → Start building. Level 1 adds a 3-step "how it works".
 - **Mission panel** (left, always visible): the same three blocks plus example data shown as label/value records, test count, and hints.
 - **Guide bar** (top of canvas): 3-step progress (trigger → set up steps → run) and one sentence saying the next action, e.g. "Finish setting up Add sheet row: Pick a sheet." Clicking it opens that step.
@@ -463,8 +466,8 @@ export const level: Level = {
 
 - **Engine unit tests:** each operator, template rendering, For each / Combine edge cases (empty lists), cycle rejection, run cap, AI lookup misses.
 - **Level tests (required before the meeting):** for every level, the reference solution passes all tests, and each trap solution fails exactly the tests it lists. This proves every level is solvable and every edge case actually bites.
-- **Dry run:** 2–3 officers play all 8 levels on the deployed site a few days before, timed. Target: an average team reaches Level 5–6 in 30 minutes. Fix confusing briefs and fail messages afterward.
-- **Load:** ~15 concurrent teams; Supabase free tier is enough.
+- **Dry run:** 2–3 officers play all 8 levels on the deployed site a few days before, timed. Target: an average solo player reaches Level 4–5 in 30 minutes (consider 35–40 min). Fix confusing briefs and fail messages afterward.
+- **Load:** ~50 concurrent players; Supabase free tier is enough.
 
 ---
 
@@ -484,8 +487,8 @@ export const level: Level = {
 
 ## 14. Fallbacks
 
-- Site down / wifi fails: printed (or slide) version of the 8 scenarios; teams sketch workflows on paper, organizer judges.
-- Supabase down: `/play` keeps working from localStorage; leaderboard replaced by teams calling out their level.
+- Site down / wifi fails: printed (or slide) version of the 8 scenarios; players sketch workflows on paper, organizer judges.
+- Supabase down: `/play` keeps working from localStorage; leaderboard replaced by players calling out their level.
 - A Zapier or n8n free account set up as a demo backup for the talk.
 
 ---

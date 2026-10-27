@@ -13,7 +13,7 @@ export function ScreenGuard({ children }: { children: ReactNode }) {
           </div>
           <h1 className="display text-2xl">Grab a laptop</h1>
           <p className="mt-2 text-[14.5px] text-muted">
-            Workflow Lab needs a bigger screen. Your team captain should open this page on a laptop.
+            Workflow Lab needs a bigger screen. Open this page on a laptop.
           </p>
         </div>
       </div>

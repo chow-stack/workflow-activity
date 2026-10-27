@@ -16,10 +16,11 @@ interface Props {
 
 const STEPS = ["Add a trigger", "Add & set up steps", "Run tests"];
 
-/** Always tells the captain the single next thing to do. */
+/** Always tells the player the single next thing to do. */
 export function GuideBar({ workflow, issues, cleared, failed, onFocus }: Props) {
   const hasTrigger = workflow.nodes.some((n) => isTrigger(n.type));
   const nodeIssue = issues.find((i) => i.nodeId);
+  const hasAction = workflow.nodes.some((n) => NODES[n.type].category === "action");
   let stage = 0;
   let text: React.ReactNode;
 
@@ -40,6 +41,9 @@ export function GuideBar({ workflow, issues, cleared, failed, onFocus }: Props) 
         <ArrowRight size={14} />
       </button>
     );
+  } else if (!hasAction) {
+    stage = 1;
+    text = "Nothing gets sent or saved yet. Add an action step (an email, Slack message or sheet row) at the end.";
   } else if (issues.length) {
     stage = 1;
     text = issues[0].message;

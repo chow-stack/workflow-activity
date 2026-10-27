@@ -1,6 +1,6 @@
 # Workflow Lab
 
-Gen AI Club automation meeting activity. Teams build Zapier-style workflows, run them against hidden tests, and climb a live leaderboard. Full design in [SPEC.md](SPEC.md).
+Gen AI Club automation meeting activity. Players build Zapier-style workflows, run them against hidden tests, and climb a live leaderboard. Full design in [SPEC.md](SPEC.md).
 
 ## Run locally
 
@@ -10,7 +10,7 @@ cp .env.example .env.local   # fill in the Supabase URL + publishable key
 npm run dev
 ```
 
-- `/` captain creates or rejoins a team
+- `/` players join with their name (or pick up where they left off)
 - `/play` the canvas (laptop only)
 - `/board` projector leaderboard
 - `/host` host controls (start, pause, +5 min, end, reset). No passcode: anyone with the link can use it

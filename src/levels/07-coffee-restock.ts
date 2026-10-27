@@ -45,7 +45,7 @@ export const level: Level = {
   skill: "Loops",
   scenario: "Every night Hoosier Bean checks its Inventory sheet to see what's running low.",
   task: "Every night at 9 PM, send the supplier ONE email listing every item that's below its reorder level.",
-  goals: ["Run every night at 21:00", "Only items with stock below reorder_level", "One email to orders@midwestroasters.example with all low items", "If nothing is low, send nothing"],
+  goals: ["Run every night at 9:00 PM", "Only items with stock below reorder_level", "One email to orders@midwestroasters.example with all low items", "If nothing is low, send nothing"],
   trigger: "schedule",
   palette: ["trigger.schedule", "data.readSheet", "data.forEach", "logic.filter", "logic.ifElse", "data.combine", "action.email", "action.slack"],
   channels: ["#manager", "#general"],

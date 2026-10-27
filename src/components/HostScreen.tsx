@@ -5,16 +5,16 @@ import { useMemo, useState } from "react";
 import { formatClock, secondsLeft, useLeaderboardData, useNow, useSession } from "@/lib/live";
 import { standings } from "@/lib/scoring";
 import { supabase } from "@/lib/supabase";
-import { inputCls } from "./panels/fields";
+import { Stepper } from "./panels/fields";
 import { Button, Logo } from "./ui";
 
 type Action = "start" | "pause" | "resume" | "add_time" | "end" | "lobby" | "reset";
 
 const PHASE_TEXT = {
-  lobby: "Teams are joining. Start when everyone's in.",
-  running: "Teams are building.",
-  paused: "The clock is stopped and team screens are covered.",
-  ended: "Over. Teams see their final score.",
+  lobby: "Players are joining. Start when everyone's in.",
+  running: "Players are building.",
+  paused: "The clock is stopped and player screens are covered.",
+  ended: "Over. Players see their final score.",
 } as const;
 
 export function HostScreen() {
@@ -27,7 +27,7 @@ export function HostScreen() {
   const rows = useMemo(() => standings(teams, completions), [teams, completions]);
 
   const act = async (action: Action, mins?: number) => {
-    if (action === "reset" && !window.confirm("Delete every team and score and go back to the lobby?")) return;
+    if (action === "reset" && !window.confirm("Delete every player and score and go back to the lobby?")) return;
     if (action === "end" && !window.confirm("End the activity for everyone?")) return;
     setBusy(action);
     const { error: err } = await supabase().rpc("host_action", { p_action: action, p_minutes: mins ?? null });
@@ -66,17 +66,7 @@ export function HostScreen() {
           <div className="mt-4 flex flex-wrap items-center gap-3">
             {(phase === "lobby" || phase === "ended") && (
               <>
-                <label className="flex items-center gap-2 text-[14px]">
-                  <input
-                    type="number"
-                    min={1}
-                    max={120}
-                    value={minutes}
-                    onChange={(e) => setMinutes(Number(e.target.value))}
-                    className={`${inputCls} w-20`}
-                  />
-                  minutes
-                </label>
+                <Stepper value={minutes} onChange={setMinutes} min={5} max={90} step={5} suffix="min" />
                 {btn("start", "Start the round", { variant: "primary", mins: minutes })}
               </>
             )}
@@ -100,7 +90,7 @@ export function HostScreen() {
           <h2 className="text-[15px] font-semibold">
             Standings{" "}
             <span className="font-normal text-muted">
-              · {teams.length} {teams.length === 1 ? "team" : "teams"}
+              · {teams.length} {teams.length === 1 ? "player" : "players"}
             </span>
           </h2>
           <ol className="mt-3 divide-y divide-line text-[14.5px]">
@@ -112,7 +102,7 @@ export function HostScreen() {
                 <span className="w-20 text-right font-semibold tabular-nums">{r.points}</span>
               </li>
             ))}
-            {rows.length === 0 && <li className="py-2 text-muted">No teams yet.</li>}
+            {rows.length === 0 && <li className="py-2 text-muted">No players yet.</li>}
           </ol>
         </section>
 

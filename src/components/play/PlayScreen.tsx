@@ -2,9 +2,10 @@
 
 import { Hourglass, LogOut, Pause, Trophy, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { LEVELS, levelById } from "@/levels";
-import { formatClock, secondsLeft, useNow, useSession } from "@/lib/live";
+import { formatClock, secondsLeft, useLeaderboardData, useNow, useSession } from "@/lib/live";
+import { standings } from "@/lib/scoring";
 import { KEYS, load, remove } from "@/lib/storage";
 import { usePlay, type Team } from "@/lib/store";
 import { fetchDone, syncDone } from "@/lib/teams";
@@ -18,6 +19,13 @@ export function PlayScreen() {
   const { session, offline } = useSession();
   const now = useNow();
   const [ready, setReady] = useState(false);
+  const board = useLeaderboardData();
+  const myId = s.team?.id;
+  const rank = useMemo(() => {
+    const rows = standings(board.teams, board.completions);
+    const i = rows.findIndex((r) => r.team.id === myId);
+    return i >= 0 ? { place: i + 1, of: rows.length } : null;
+  }, [board, myId]);
 
   useEffect(() => {
     const team = load<Team | null>(KEYS.team, null);
@@ -43,7 +51,8 @@ export function PlayScreen() {
   }
 
   const phase = offline ? "running" : session!.phase;
-  const clock = phase === "running" || phase === "paused" ? formatClock(secondsLeft(session, now)) : null;
+  const left = secondsLeft(session, now);
+  const clock = phase === "running" || phase === "paused" ? formatClock(left) : null;
   const leave = () => {
     remove(KEYS.team);
     router.replace("/");
@@ -58,10 +67,12 @@ export function PlayScreen() {
           teamName={s.team.name}
           progress={s.progress}
           clock={clock}
+          secondsLeft={left}
           paused={phase === "paused"}
+          rank={offline || phase === "lobby" ? null : rank}
           onPick={phase === "running" || phase === "paused" ? (id) => unlocked(s.progress, id) && s.setLevel(id) : undefined}
           right={
-            <button onClick={leave} title="Switch team" className="rounded-full p-1.5 text-muted hover:bg-sand hover:text-ink">
+            <button onClick={leave} title="Switch player" className="rounded-full p-1.5 text-muted hover:bg-sand hover:text-ink">
               <LogOut size={15} />
             </button>
           }
@@ -74,7 +85,7 @@ export function PlayScreen() {
 
         {phase === "lobby" && (
           <Centered icon={<Hourglass size={26} />} title={`You're in, ${s.team.name}.`}>
-            Waiting for the host to start. While you wait: decide who reads the scenario out loud and who checks the results.
+            Waiting for the host to start. Keep this screen open; Level 1 appears here when the clock starts.
           </Centered>
         )}
         {(phase === "running" || phase === "paused") && (

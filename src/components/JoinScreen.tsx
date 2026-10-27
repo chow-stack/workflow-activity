@@ -46,12 +46,12 @@ export function JoinScreen() {
             <span className="text-crimson">Climb the board.</span>
           </h1>
           <p className="mt-5 max-w-[460px] text-[17px] leading-relaxed text-ink-2">
-            Eight real scenarios. Your team builds a workflow for each one, runs it against hidden tests, and moves on when it works.
+            Eight real scenarios. Build a workflow for each one, run it against hidden tests, and move on when it works.
           </p>
 
           <ul className="mt-6 space-y-2 text-[15px] text-ink-2">
             {[
-              "One captain uses the laptop; everyone else helps think it through.",
+              "Work at your own pace on your own laptop.",
               "Clear a level to unlock the next one.",
               "Hints help, but cost points.",
             ].map((t) => (
@@ -63,19 +63,19 @@ export function JoinScreen() {
           </ul>
 
           <form onSubmit={submit} className="mt-10 max-w-[460px]">
-            <label className="mb-2 block text-[14px] font-semibold">{mode === "create" ? "Captain: name your team" : "Your team's exact name"}</label>
+            <label className="mb-2 block text-[14px] font-semibold">{mode === "create" ? "Your name" : "The exact name you joined with"}</label>
             <div className="flex gap-2">
               <input
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={40}
-                placeholder="e.g. The Zap Pack"
+                placeholder="e.g. Maya P."
                 className={`${inputCls} min-h-[48px] text-[16px]`}
               />
               <Button size="lg" disabled={busy || !name.trim()} className="shrink-0">
                 {busy && <LoaderCircle size={17} className="animate-spin" />}
-                {mode === "create" ? "Create team" : "Rejoin"}
+                {mode === "create" ? "Start" : "Continue"}
                 {!busy && <ArrowRight size={17} />}
               </Button>
             </div>
@@ -88,7 +88,7 @@ export function JoinScreen() {
               }}
               className="mt-4 text-[14px] font-medium text-ink-2 underline-offset-4 hover:underline"
             >
-              {mode === "create" ? "Already made a team? Rejoin it" : "Need a new team? Create one"}
+              {mode === "create" ? "Already joined on another device? Pick up where you left off" : "New here? Join with your name"}
             </button>
           </form>
         </div>

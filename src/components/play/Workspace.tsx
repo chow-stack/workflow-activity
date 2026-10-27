@@ -125,7 +125,7 @@ export function Workspace({ level, online }: { level: Level; online: boolean }) 
             onRemoveEdges={s.removeEdges}
             onConnect={s.connect}
             onSelect={s.select}
-            fitKey={Boolean(showDrawer)}
+            fitKey={`${Boolean(showDrawer)}-${Boolean(selected)}`}
             strict={attempted}
             overlay={
               <>

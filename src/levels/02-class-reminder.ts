@@ -18,7 +18,7 @@ export const level: Level = {
   skill: "Schedules",
   scenario: "Your C204 study group keeps forgetting the quiz that happens every Monday.",
   task: "Post “C204 quiz today” in #c204-study every Monday at 8:00 AM.",
-  goals: ["Run once a week: Monday at 08:00", "Post the reminder in #c204-study"],
+  goals: ["Run once a week: Monday at 8:00 AM", "Post the reminder in #c204-study"],
   trigger: "schedule",
   palette: ["trigger.schedule", "trigger.form", "action.slack", "action.email"],
   form: { title: "Study group sign-up", fields: ["name", "email"] },

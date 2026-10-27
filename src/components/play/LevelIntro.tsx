@@ -12,7 +12,7 @@ const HOW = [
   { icon: Play, title: "Run tests", text: "We feed it example data. All green means you pass." },
 ];
 
-/** Shown the first time a team opens a level: the whole mission on one card. */
+/** Shown the first time a player opens a level: the whole mission on one card. */
 export function LevelIntro({ level, onStart }: { level: Level; onStart: () => void }) {
   return (
     <div className="absolute inset-0 z-40 grid place-items-center overflow-y-auto bg-ink/25 p-6 backdrop-blur-[2px]">
