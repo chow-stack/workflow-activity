@@ -262,17 +262,15 @@ function Editor({
                     className={`${inputCls}`}
                   />
                   <div className="w-[104px] shrink-0">
-                    <select
+                    <Select<ExtractType>
                       value={f.type}
-                      onChange={(ev) =>
-                        onChange({ fields: list.map((x, j) => (j === i ? { ...x, type: ev.target.value as ExtractType } : x)) })
-                      }
-                      className={inputCls}
-                    >
-                      <option value="text">text</option>
-                      <option value="number">number</option>
-                      <option value="list">list</option>
-                    </select>
+                      onChange={(t) => onChange({ fields: list.map((x, j) => (j === i ? { ...x, type: t } : x)) })}
+                      options={[
+                        { value: "text", label: "text" },
+                        { value: "number", label: "number" },
+                        { value: "list", label: "list" },
+                      ]}
+                    />
                   </div>
                   <IconBtn onClick={() => onChange({ fields: list.filter((_, j) => j !== i) })} disabled={list.length <= 1} />
                 </div>
@@ -384,13 +382,13 @@ function ConditionsEditor({ cfg, fields, onChange }: { cfg: FilterConfig; fields
                 <FieldSelect value={c.field} onChange={(v) => set(i, { field: v })} fields={fields} kinds={["text", "number", "list"]} />
                 <IconBtn onClick={() => onChange({ conditions: conds.filter((_, j) => j !== i) })} disabled={conds.length <= 1} />
               </div>
-              <select value={c.op} onChange={(e) => set(i, { op: e.target.value as Condition["op"] })} className={`${inputCls} mt-2`}>
-                {OPS.map((o) => (
-                  <option key={o.op} value={o.op}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-2">
+                <Select<Condition["op"]>
+                  value={c.op}
+                  onChange={(op) => set(i, { op })}
+                  options={OPS.map((o) => ({ value: o.op, label: o.long ?? o.label }))}
+                />
+              </div>
               {needsValue && (
                 <div className="mt-2">
                   <TemplateInput value={c.value} onChange={(v) => set(i, { value: v })} fields={fields} placeholder="value" />

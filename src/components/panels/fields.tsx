@@ -3,6 +3,7 @@
 import { Check, ChevronDown, Clock } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { FieldInfo } from "@/engine/types";
+import { Dropdown, type DropdownOption } from "./Dropdown";
 
 export const inputCls =
   "w-full rounded border border-line-strong bg-paper px-3 py-2 text-[14px] text-ink outline-none transition placeholder:text-faint focus:border-ink";
@@ -108,19 +109,9 @@ export function FieldSelect({
   kinds?: FieldInfo["kind"][];
   placeholder?: string;
 }) {
-  const options = fields.filter((f) => !kinds || kinds.includes(f.kind));
-  const missing = value && !options.some((f) => f.name === value);
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
-      <option value="">{placeholder}</option>
-      {missing && <option value={value}>{value} (not available here)</option>}
-      {options.map((f) => (
-        <option key={f.name} value={f.name}>
-          {f.name}
-        </option>
-      ))}
-    </select>
-  );
+  const options: DropdownOption[] = fields.filter((f) => !kinds || kinds.includes(f.kind)).map((f) => ({ value: f.name, label: f.name }));
+  if (value && !options.some((o) => o.value === value)) options.unshift({ value, label: value, hint: "not available here" });
+  return <Dropdown value={value} onChange={onChange} options={options} placeholder={placeholder} mono />;
 }
 
 export function Select<T extends string | number>({
@@ -135,21 +126,15 @@ export function Select<T extends string | number>({
   placeholder?: string;
 }) {
   return (
-    <select
+    <Dropdown
       value={String(value)}
-      onChange={(e) => {
-        const o = options.find((x) => String(x.value) === e.target.value);
+      placeholder={placeholder}
+      options={options.map((o) => ({ value: String(o.value), label: o.label }))}
+      onChange={(v) => {
+        const o = options.find((x) => String(x.value) === v);
         if (o) onChange(o.value);
       }}
-      className={inputCls}
-    >
-      {placeholder && <option value="">{placeholder}</option>}
-      {options.map((o) => (
-        <option key={String(o.value)} value={String(o.value)}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    />
   );
 }
 

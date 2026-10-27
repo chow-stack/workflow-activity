@@ -412,7 +412,7 @@ Zapier's system, light mode only, with genaiiu.com's logo and colors. Tokens liv
 ### 10.1 Making it easy to follow
 - **Top bar:** level stepper, countdown (turns crimson at 5 min, pulses in the last minute), points and live rank ("#3 of 41").
 - **Board:** top 10 players plus "+N more"; everyone sees their own rank on their screen.
-- **Controls:** dropdowns share one styled chevron; schedule uses outlined "Every hour / day / week" chips, round M–S day buttons, and a single time button ("8:00 AM") that opens a 30-minute list (hourly uses :00 / :15 / :30 / :45 chips); filter All/Any uses the same chips; host minutes is a − / + stepper.
+- **Controls:** every dropdown is a custom `Dropdown` (input-style button + paper menu in a portal, keyboard support; no native `<select>`, so no OS-styled popups); schedule uses outlined "Every hour / day / week" chips, round M–S day buttons, and a single time button ("8:00 AM") that opens a 30-minute list (hourly uses :00 / :15 / :30 / :45 chips); filter All/Any uses the same chips; host minutes is a − / + stepper.
 - **Level intro card** the first time a level opens: situation → task (highlighted) → "You're done when" checklist → Start building. Level 1 adds a 3-step "how it works".
 - **Mission panel** (left, always visible): the same three blocks plus example data shown as label/value records, test count, and hints.
 - **Guide bar** (top of canvas): 3-step progress (trigger → set up steps → run) and one sentence saying the next action, e.g. "Finish setting up Add sheet row: Pick a sheet." Clicking it opens that step.

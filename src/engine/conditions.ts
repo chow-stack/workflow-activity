@@ -1,7 +1,7 @@
 import { render } from "./template";
 import type { Condition, Item, Op, Value } from "./types";
 
-export const OPS: { op: Op; label: string; needsValue: boolean }[] = [
+export const OPS: { op: Op; label: string; long?: string; needsValue: boolean }[] = [
   { op: "equals", label: "equals", needsValue: true },
   { op: "notEquals", label: "does not equal", needsValue: true },
   { op: "contains", label: "contains", needsValue: true },
@@ -9,10 +9,10 @@ export const OPS: { op: Op; label: string; needsValue: boolean }[] = [
   { op: "startsWith", label: "starts with", needsValue: true },
   { op: "endsWith", label: "ends with", needsValue: true },
   { op: "endsWithAny", label: "ends with any of", needsValue: true },
-  { op: "gt", label: ">", needsValue: true },
-  { op: "gte", label: "≥", needsValue: true },
-  { op: "lt", label: "<", needsValue: true },
-  { op: "lte", label: "≤", needsValue: true },
+  { op: "gt", long: "is greater than (>)", label: ">", needsValue: true },
+  { op: "gte", long: "is at least (≥)", label: "≥", needsValue: true },
+  { op: "lt", long: "is less than (<)", label: "<", needsValue: true },
+  { op: "lte", long: "is at most (≤)", label: "≤", needsValue: true },
   { op: "empty", label: "is empty", needsValue: false },
   { op: "notEmpty", label: "is not empty", needsValue: false },
 ];
