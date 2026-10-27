@@ -4,10 +4,10 @@ import { Plus, Trash2, X } from "lucide-react";
 import type { ExtractType } from "@/engine/ai";
 import { OPS } from "@/engine/conditions";
 import { NODES, type ExtractConfig, type FilterConfig, type SwitchConfig } from "@/engine/nodes";
-import { WEEKDAYS, describeSchedule, type ScheduleConfig } from "@/engine/schedule";
+import { describeSchedule, type ScheduleConfig } from "@/engine/schedule";
 import type { Condition, Config, FieldInfo, Level, WfNode } from "@/engine/types";
 import { CATEGORY_WORD, NODE_ICON, tileStyle } from "../canvas/icons";
-import { FieldSelect, Label, Section, Segmented, Select, TemplateInput, TimeSelect, inputCls } from "./fields";
+import { ChipGroup, DayPicker, FieldSelect, Label, MinutePicker, Section, Select, TemplateInput, TimePicker, inputCls } from "./fields";
 
 interface Props {
   node: WfNode;
@@ -99,33 +99,33 @@ function Editor({
       const freq = str(c, "frequency") || "day";
       return (
         <>
-          <Section label="How often">
-            <Segmented
+          <Section label="Repeats">
+            <ChipGroup
               value={freq}
               onChange={(v) => onChange({ frequency: v })}
               options={[
-                { value: "hour", label: "Hourly" },
-                { value: "day", label: "Daily" },
-                { value: "week", label: "Weekly" },
+                { value: "hour", label: "Every hour" },
+                { value: "day", label: "Every day" },
+                { value: "week", label: "Every week" },
               ]}
             />
           </Section>
           {freq === "week" && (
-            <Section label="Which day">
-              <Segmented
-                size="sm"
-                value={Number(c.weekday ?? 1)}
-                onChange={(v) => onChange({ weekday: v })}
-                options={WEEKDAYS.map((d, i) => ({ value: i, label: d.slice(0, 2), title: d }))}
-              />
+            <Section label="On">
+              <DayPicker value={Number(c.weekday ?? 1)} onChange={(v) => onChange({ weekday: v })} />
             </Section>
           )}
-          <Section label={freq === "hour" ? "At" : "What time"}>
-            <TimeSelect value={str(c, "time")} onChange={(v) => onChange({ time: v })} minuteOnly={freq === "hour"} />
+          <Section label={freq === "hour" ? "At minute" : "At"}>
+            {freq === "hour" ? (
+              <MinutePicker value={str(c, "time")} onChange={(v) => onChange({ time: v })} />
+            ) : (
+              <TimePicker value={str(c, "time")} onChange={(v) => onChange({ time: v })} />
+            )}
           </Section>
-          <div className="mb-5 rounded bg-cream px-3 py-2 text-[13px] text-ink-2">
-            Runs <b className="font-semibold">{describeSchedule(c as unknown as ScheduleConfig).replace(/^Every/, "every")}</b>
-          </div>
+          <p className="-mt-1 mb-5 text-[13px] text-muted">
+            Runs{" "}
+            <span className="font-semibold text-ink">{describeSchedule(c as unknown as ScheduleConfig).replace(/^Every/, "every")}</span>.
+          </p>
           <Section label="Fields this trigger gives you">
             <FieldList names={["fired_at", "weekday", "time"]} />
           </Section>
@@ -364,7 +364,7 @@ function ConditionsEditor({ cfg, fields, onChange }: { cfg: FilterConfig; fields
     <>
       {conds.length > 1 && (
         <Section label="Pass when">
-          <Segmented
+          <ChipGroup
             value={cfg.match ?? "all"}
             onChange={(v) => onChange({ match: v })}
             options={[
