@@ -1,26 +1,127 @@
 @import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Chrome: genaiiu.com (measured 2026-10-27). Canvas: n8n structure in club colors. */
+@theme {
+  --color-cream: #f7f5f2;
+  --color-ink: #2e1f1f;
+  --color-ink-muted: #7e6767;
+  --color-line: #e5e0dc;
+  --color-crimson: #981b25;
+  --color-crimson-dark: #7d1620;
+  --color-surface: #ffffff;
+
+  --color-canvas: #1a1213;
+  --color-canvas-dot: #4a3537;
+  --color-node: #261b1c;
+  --color-node-hover: #2e2122;
+  --color-node-border: #3d2c2d;
+  --color-node-text: #ede6e3;
+  --color-node-muted: #a8999a;
+  --color-edge: #5a4446;
+  --color-ember: #f07a3d;
+
+  --color-cat-trigger: #d9434f;
+  --color-cat-data: #e0a44b;
+  --color-cat-logic: #7c93c3;
+  --color-cat-ai: #c77dba;
+  --color-cat-action: #6faf8a;
+
+  --color-pass: #3e9b6a;
+  --color-fail: #d64545;
+  --color-warn: #c98a1b;
+
+  --font-display: var(--font-playfair), Georgia, serif;
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --radius-node: 12px;
+  --radius-card: 16px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: rgb(152 27 37 / 0.18);
+}
+
+/* ---- React Flow overrides ---- */
+.react-flow {
+  --xy-background-color: var(--color-canvas);
+  --xy-edge-stroke: var(--color-edge);
+  --xy-edge-stroke-width: 2;
+  --xy-edge-stroke-selected: #c9a3a6;
+  --xy-connectionline-stroke: var(--color-ember);
+  --xy-handle-background-color: #4a3638;
+  --xy-handle-border-color: #6b5153;
+  --xy-controls-button-background-color: var(--color-node);
+  --xy-controls-button-background-color-hover: var(--color-node-hover);
+  --xy-controls-button-color: var(--color-node-text);
+  --xy-controls-button-border-color: var(--color-node-border);
+  --xy-attribution-background-color: transparent;
+}
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__handle {
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
+}
+.react-flow__handle:hover {
+  background: var(--color-ember);
+}
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--color-node-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Data flowing along an edge during a run */
+@keyframes flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.edge-flowing {
+  stroke-dasharray: 8 4;
+  animation: flow 0.5s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
+.ai-thinking {
+  background-image: linear-gradient(90deg, transparent, rgb(199 125 186 / 0.25), transparent);
+  background-size: 200px 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 0.9s linear infinite;
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-pop {
+  animation: pop 0.18s ease-out;
 }

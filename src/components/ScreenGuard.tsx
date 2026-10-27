@@ -1,0 +1,22 @@
+import { Laptop } from "lucide-react";
+import type { ReactNode } from "react";
+
+/** The canvas needs a laptop-sized screen. Below 1024px, ask for one instead. */
+export function ScreenGuard({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <div className="hidden min-[1024px]:contents">{children}</div>
+      <div className="grid min-h-screen place-items-center p-8 text-center min-[1024px]:hidden">
+        <div className="max-w-xs">
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-crimson/10 text-crimson">
+            <Laptop size={26} />
+          </div>
+          <h1 className="font-display text-2xl">Grab a laptop</h1>
+          <p className="mt-2 text-[14.5px] text-ink-muted">
+            Workflow Lab needs a bigger screen. Your team captain should open this page on a laptop.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}

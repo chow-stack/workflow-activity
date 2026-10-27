@@ -45,7 +45,7 @@ Status: draft v1 · 2026-10-27
 | `/` | Captain | Create team (team name only) or rejoin an existing team by name |
 | `/play` | Captain | Level brief + canvas + config panel + results |
 | `/board` | Projector | Live leaderboard, countdown, boss gallery |
-| `/host` | Organizer | Passcode-gated controls: start / pause / start boss / end / reset |
+| `/host` | Organizer | Passcode-gated controls: start / pause / +5 min / start boss / end / reset |
 
 ### 3.1 Session phases
 Stored in Supabase `session` row; every client subscribes via Realtime.
@@ -111,11 +111,13 @@ create table boss_submissions (
 ```
 
 **RLS**
-- `anon`: `select` on all four tables; `insert` on `teams`, `completions`, `boss_submissions`. No `update`/`delete`.
-- `session` writes and reset only through `/api/host/*` route handlers using the service-role key, gated by `HOST_PASSCODE`.
+- `anon`: `select` on all four tables; `insert` on `teams` (any phase but `ended`) and `completions` (only while `running`). No `update`/`delete`.
+- Host controls go through `host_action(passcode, action, minutes)`, a `security definer` function that checks a bcrypt hash in `private.host_secret`. No service-role key in the app and no API routes. (Built 2026-10-27; replaces the `/api/host/*` + service-role plan.)
+- Boss designs go through `submit_boss(...)` (upsert, only during `boss`).
 - Realtime enabled on `session`, `teams`, `completions`, `boss_submissions`.
+- Change the passcode: `update private.host_secret set passcode_hash = extensions.crypt('<new>', extensions.gen_salt('bf'));`
 
-**Env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only), `HOST_PASSCODE` (server only).
+**Env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Both are public by design.
 
 Grading is client-side, so scores are trust-based. Accepted.
 
@@ -500,34 +502,20 @@ Light theme, very large type. Columns: rank · team · 8 progress pips (filled c
 
 ```
 src/
-  app/
-    page.tsx                 # create / rejoin team
-    play/page.tsx
-    board/page.tsx
-    host/page.tsx
-    api/host/[action]/route.ts   # start, pause, resume, boss, end, reset (service role + passcode)
-  engine/
-    types.ts                 # Item, Workflow, NodeDef, World, TestCase, Assertion
-    nodes/                   # one file per node type: config schema, outputFields, run
-    run.ts                   # executeWorkflow(workflow, level, testCase) → { world, trace }
-    grade.ts                 # gradeLevel(workflow, level) → TestResult[]
-    template.ts              # {{token}} rendering
-    conditions.ts            # operators + comparison rules
-    ai.ts                    # simulated classify / extract / write
-  levels/
-    01-club-rsvp.ts … 08-invoice-chaser.ts, boss.ts, index.ts
+  app/                       # page.tsx (join), play/, board/, host/ — thin wrappers around components
+  engine/                    # pure TS, no React
+    types.ts  template.ts  conditions.ts  schedule.ts  ai.ts
+    nodes.ts                 # node catalog: defaults, validation, field propagation, summaries, run
+    graph.ts  fields.ts  validate.ts  run.ts  grade.ts  build.ts
+  levels/                    # 01-…08-*.ts, boss.ts, index.ts
   components/
-    canvas/                  # React Flow nodes, edges, add-node menu
-    panels/                  # brief, config, results, world views
-    board/
-  lib/
-    supabase.ts, session.ts, storage.ts, scoring.ts
-  styles/tokens.css
-supabase/
-  migrations/0001_init.sql
-tests/
-  engine/*.test.ts
-  levels/*.test.ts
+    canvas/                  # Canvas (React Flow), NodeCard, FlowEdge, AddNodeMenu, icons
+    panels/                  # BriefPanel, ConfigPanel, ResultsDrawer, DataPreview, fields
+    play/                    # PlayScreen (phase gating), Workspace (run + animation), BossScreen
+    JoinScreen  BoardScreen  HostScreen  TopBar  ScreenGuard
+  lib/                       # supabase, live (realtime hooks), store (zustand), teams, scoring, storage
+supabase/migrations/0001_init.sql
+tests/                       # engine.test.ts, levels.test.ts (reference + trap solutions)
 ```
 
 ### Level file shape
