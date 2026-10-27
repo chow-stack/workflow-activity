@@ -113,7 +113,6 @@ function CanvasInner(p: CanvasProps) {
       for (const c of changes) {
         if (c.type === "position" && c.position) p.onMove?.(c.id, c.position);
         if (c.type === "remove") removed.push(c.id);
-        if (c.type === "select" && c.selected) p.onSelect?.(c.id);
       }
       if (removed.length) p.onRemoveNodes?.(removed);
     },
@@ -176,6 +175,9 @@ function CanvasInner(p: CanvasProps) {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onConnectEnd={onConnectEnd}
+        // Open a step's settings on a real click only; dragging a step (past the threshold) isn't a click.
+        onNodeClick={(_, node) => p.onSelect?.(node.id)}
+        nodeDragThreshold={4}
         onPaneClick={() => p.onSelect?.(null)}
         nodesConnectable={!p.readOnly}
         elementsSelectable={!p.readOnly}
