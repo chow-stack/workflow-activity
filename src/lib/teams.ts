@@ -44,7 +44,3 @@ export async function syncDone(teamId: string, progress: Progress) {
   }
 }
 
-export async function submitBoss(teamId: string, title: string, problem: string, workflow: unknown) {
-  const { error } = await supabase().rpc("submit_boss", { p_team: teamId, p_title: title, p_problem: problem, p_workflow: workflow });
-  return error ? error.message : null;
-}

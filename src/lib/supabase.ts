@@ -12,7 +12,7 @@ export function supabase(): SupabaseClient {
   return client;
 }
 
-export type Phase = "lobby" | "running" | "paused" | "boss" | "ended";
+export type Phase = "lobby" | "running" | "paused" | "ended";
 
 export interface SessionRow {
   phase: Phase;
@@ -35,10 +35,3 @@ export interface CompletionRow {
   completed_at: string;
 }
 
-export interface BossRow {
-  team_id: string;
-  title: string;
-  problem: string;
-  workflow: unknown;
-  submitted_at: string;
-}

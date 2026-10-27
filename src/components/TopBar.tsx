@@ -1,22 +1,10 @@
 "use client";
 
 import { Check, Lock, Timer } from "lucide-react";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { LEVELS } from "@/levels";
 import type { Progress } from "@/lib/store";
-
-export function Logo({ size = 28 }: { size?: number }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo-mark.png" alt="" width={size} height={Math.round(size * 0.73)} />
-      <div className="leading-none">
-        <div className="text-[10px] font-semibold tracking-[0.14em] text-crimson uppercase">Gen AI Club</div>
-        <div className="font-display text-[17px]">Workflow Lab</div>
-      </div>
-    </div>
-  );
-}
+import { Logo } from "./ui";
 
 export function unlocked(progress: Progress, id: number) {
   return id === 1 || Boolean(progress.done[id - 1]) || Boolean(progress.done[id]);
@@ -34,54 +22,62 @@ interface Props {
 export function TopBar({ teamName, progress, clock, paused, onPick, right }: Props) {
   const total = Object.values(progress.done).reduce((s, d) => s + d.points, 0);
   return (
-    <header className="flex h-[60px] shrink-0 items-center gap-6 border-b border-line bg-cream px-5">
-      <Logo />
-      <div className="h-7 w-px bg-line" />
-      <div className="max-w-[200px] truncate text-[14px] font-medium" title={teamName}>
-        {teamName}
-      </div>
+    <header className="flex h-16 shrink-0 items-center gap-5 border-b border-line bg-paper px-5">
+      <Logo compact />
 
-      {onPick && (
-        <nav className="mx-auto flex items-center gap-1.5" aria-label="Levels">
-          {LEVELS.map((l) => {
+      {onPick ? (
+        <nav className="mx-auto flex items-center" aria-label="Levels">
+          {LEVELS.map((l, i) => {
             const d = progress.done[l.id];
             const open = unlocked(progress, l.id);
             const current = progress.currentLevel === l.id;
             return (
-              <button
-                key={l.id}
-                disabled={!open}
-                onClick={() => onPick(l.id)}
-                title={open ? `Level ${l.id}: ${l.title}` : "Locked"}
-                className={`grid size-8 place-items-center rounded-full text-[13px] font-medium transition ${
-                  current
-                    ? "bg-crimson text-white ring-4 ring-crimson/15"
-                    : d && !d.skipped
-                      ? "bg-crimson/10 text-crimson hover:bg-crimson/20"
-                      : d?.skipped
-                        ? "bg-line text-ink-muted"
-                        : open
-                          ? "border border-crimson/40 text-crimson hover:bg-crimson/5"
-                          : "border border-line text-ink-muted/50"
-                }`}
-              >
-                {d && !d.skipped && !current ? <Check size={14} strokeWidth={3} /> : !open ? <Lock size={12} /> : l.id}
-              </button>
+              <Fragment key={l.id}>
+                {i > 0 && <span className={`h-[2px] w-4 ${progress.done[l.id - 1] ? "bg-crimson/50" : "bg-line"}`} />}
+                <button
+                  disabled={!open}
+                  onClick={() => onPick(l.id)}
+                  title={open ? `Level ${l.id}: ${l.title}` : "Finish the previous level to unlock"}
+                  className={`grid size-8 place-items-center rounded-full text-[13px] font-semibold transition ${
+                    current
+                      ? "bg-crimson text-paper ring-4 ring-crimson/15"
+                      : d && !d.skipped
+                        ? "bg-crimson-soft text-crimson hover:bg-crimson/20"
+                        : d?.skipped
+                          ? "bg-sand text-muted"
+                          : open
+                            ? "bg-paper text-crimson ring-1 ring-crimson/50 hover:bg-crimson-soft"
+                            : "bg-paper text-faint ring-1 ring-line"
+                  }`}
+                >
+                  {d && !d.skipped && !current ? <Check size={14} strokeWidth={3} /> : !open ? <Lock size={12} /> : l.id}
+                </button>
+              </Fragment>
             );
           })}
         </nav>
+      ) : (
+        <div className="mx-auto" />
       )}
-      {!onPick && <div className="mx-auto" />}
 
       {clock !== null && (
-        <div className={`flex items-center gap-1.5 font-mono text-[15px] tabular-nums ${paused ? "text-warn" : ""}`}>
-          <Timer size={16} className="text-ink-muted" />
+        <div
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-semibold tabular-nums ring-1 ${
+            paused ? "bg-warn-soft text-warn ring-warn/30" : "ring-line"
+          }`}
+        >
+          <Timer size={15} className={paused ? "" : "text-muted"} />
           {clock}
-          {paused && <span className="font-sans text-[12px]">paused</span>}
+          {paused && <span className="text-[12px] font-medium">paused</span>}
         </div>
       )}
-      <div className="rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-cream tabular-nums">{total.toLocaleString()} pts</div>
-      {right}
+      <div className="rounded-full bg-ink px-3.5 py-1.5 text-[14px] font-semibold text-paper tabular-nums">{total.toLocaleString()} pts</div>
+      <div className="flex items-center gap-1 border-l border-line pl-4">
+        <span className="max-w-[160px] truncate text-[14px] font-medium" title={teamName}>
+          {teamName}
+        </span>
+        {right}
+      </div>
     </header>
   );
 }

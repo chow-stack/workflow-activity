@@ -28,5 +28,4 @@ export function remove(key: string): void {
 export const KEYS = {
   team: "wl.team",
   progress: (teamId: string) => `wl.progress.${teamId}`,
-  host: "wl.host",
 };

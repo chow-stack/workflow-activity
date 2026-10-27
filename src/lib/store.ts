@@ -17,6 +17,7 @@ export interface Progress {
   workflows: Record<number, Workflow>;
   hints: Record<number, number>;
   done: Record<number, { points: number; skipped: boolean }>;
+  seenIntro: Record<number, boolean>;
 }
 
 export type NodeRunState = "idle" | "running" | "ran" | "skipped";
@@ -29,7 +30,7 @@ export interface Anim {
 }
 
 const EMPTY: Workflow = { nodes: [], edges: [] };
-const emptyProgress = (): Progress => ({ currentLevel: 1, workflows: {}, hints: {}, done: {} });
+const emptyProgress = (): Progress => ({ currentLevel: 1, workflows: {}, hints: {}, done: {}, seenIntro: {} });
 const emptyAnim = (): Anim => ({ active: false, nodes: {}, edges: {}, flowing: {} });
 
 interface PlayState {
@@ -53,6 +54,7 @@ interface PlayState {
   removeEdges: (ids: string[]) => void;
   select: (id: string | null) => void;
   takeHint: () => void;
+  markIntroSeen: (levelId: number) => void;
   markDone: (levelId: number, points: number, skipped: boolean) => void;
   setGrade: (g: GradeResult | null) => void;
   setAnim: (a: Partial<Anim>) => void;
@@ -93,7 +95,7 @@ export const usePlay = create<PlayState>((set, get) => {
       const merged: Progress = { ...emptyProgress(), ...stored, done: { ...stored.done, ...(done ?? {}) } };
       // Resume at the first level that isn't finished yet.
       const firstOpen = [1, 2, 3, 4, 5, 6, 7, 8].find((l) => !merged.done[l]) ?? 8;
-      if (!merged.currentLevel || (merged.currentLevel <= 8 && merged.currentLevel > firstOpen)) merged.currentLevel = firstOpen;
+      if (!merged.currentLevel || merged.currentLevel > firstOpen) merged.currentLevel = firstOpen;
       set({ team, progress: merged, grade: null, selectedId: null, anim: emptyAnim(), drawerOpen: false });
       save(KEYS.progress(team.id), merged);
     },
@@ -172,6 +174,12 @@ export const usePlay = create<PlayState>((set, get) => {
       const { progress } = get();
       const lvl = progress.currentLevel;
       set({ progress: { ...progress, hints: { ...progress.hints, [lvl]: Math.min(2, (progress.hints[lvl] ?? 0) + 1) } } });
+      persist();
+    },
+
+    markIntroSeen: (levelId) => {
+      const { progress } = get();
+      set({ progress: { ...progress, seenIntro: { ...progress.seenIntro, [levelId]: true } } });
       persist();
     },
 

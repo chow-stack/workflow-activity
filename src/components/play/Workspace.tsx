@@ -4,6 +4,7 @@ import { LoaderCircle, Play, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fieldsInto } from "@/engine/fields";
 import { gradeLevel } from "@/engine/grade";
+import { topoOrder } from "@/engine/graph";
 import { NODES } from "@/engine/nodes";
 import { validate } from "@/engine/validate";
 import type { Level } from "@/engine/types";
@@ -15,6 +16,9 @@ import { Canvas } from "../canvas/Canvas";
 import { BriefPanel } from "../panels/BriefPanel";
 import { ConfigPanel } from "../panels/ConfigPanel";
 import { ResultsDrawer } from "../panels/ResultsDrawer";
+import { Button } from "../ui";
+import { GuideBar } from "./GuideBar";
+import { LevelIntro } from "./LevelIntro";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -34,10 +38,12 @@ export function Workspace({ level, online }: { level: Level; online: boolean }) 
   }, []);
 
   const issues = useMemo(() => validate(wf, level), [wf, level]);
+  // Unfinished steps always show a to-do on their card; after a Run attempt they turn red.
   const issueMap = useMemo(
-    () => (attempted ? Object.fromEntries(issues.filter((i) => i.nodeId).map((i) => [i.nodeId!, i.message])) : {}),
-    [issues, attempted],
+    () => Object.fromEntries(issues.filter((i) => i.nodeId).map((i) => [i.nodeId!, i.message.replace(/^[^:]+: /, "")])),
+    [issues],
   );
+  const stepOf = useMemo(() => Object.fromEntries(topoOrder(wf).map((id, i) => [id, i + 1])), [wf]);
   const selected = wf.nodes.find((n) => n.id === s.selectedId);
   const hints = s.progress.hints[level.id] ?? 0;
   const done = s.progress.done[level.id];
@@ -97,10 +103,11 @@ export function Workspace({ level, online }: { level: Level; online: boolean }) 
   };
 
   const showDrawer = s.drawerOpen && s.grade && s.grade.tests.length > 0;
-  const blocking = attempted ? issues : [];
+  const blocked = attempted && issues.length > 0;
+  const passedCount = s.grade?.tests.filter((t) => t.passed).length ?? 0;
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="relative flex min-h-0 flex-1">
       <BriefPanel level={level} hintsUsed={hints} done={done} onHint={s.takeHint} onSkip={skip} />
 
       <main className="flex min-w-0 flex-1 flex-col">
@@ -118,46 +125,39 @@ export function Workspace({ level, online }: { level: Level; online: boolean }) 
             onRemoveEdges={s.removeEdges}
             onConnect={s.connect}
             onSelect={s.select}
-          fitKey={Boolean(showDrawer)}
+            fitKey={Boolean(showDrawer)}
+            strict={attempted}
             overlay={
-              <div className="pointer-events-none absolute right-4 bottom-4 z-10 flex flex-col items-end gap-2">
-                {blocking.length > 0 && (
-                  <div className="animate-pop pointer-events-auto max-w-[360px] rounded-xl bg-[#2f1a1a] p-3 text-[12.5px] text-[#ffc9c9] ring-1 ring-fail/40">
-                    <div className="mb-1 flex items-center gap-1.5 font-medium">
-                      <TriangleAlert size={14} /> Fix these before running
+              <>
+                <div className="pointer-events-none absolute top-4 right-36 left-4 z-10 flex">
+                  <GuideBar
+                    workflow={wf}
+                    issues={issues}
+                    cleared={Boolean(done && !done.skipped && s.grade?.passed)}
+                    failed={Boolean(s.grade && s.grade.tests.length && !s.grade.passed && !s.gradeStale)}
+                    onFocus={s.select}
+                  />
+                </div>
+                <div className="pointer-events-none absolute right-4 bottom-4 z-10 flex flex-col items-end gap-2">
+                  {blocked && (
+                    <div className="animate-pop pointer-events-auto flex max-w-[340px] gap-2 rounded-lg bg-fail-soft px-3.5 py-2.5 text-[13px] text-fail ring-1 ring-fail/30">
+                      <TriangleAlert size={15} className="mt-0.5 shrink-0" />
+                      <span>{issues.find((i) => !i.nodeId)?.message ?? "Finish setting up the steps marked in red, then run again."}</span>
                     </div>
-                    <ul className="list-disc space-y-0.5 pl-5">
-                      {blocking.slice(0, 5).map((i, k) => (
-                        <li key={k}>
-                          {i.nodeId ? (
-                            <button className="text-left underline-offset-2 hover:underline" onClick={() => s.select(i.nodeId!)}>
-                              {i.message}
-                            </button>
-                          ) : (
-                            i.message
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                  )}
+                  <div className="pointer-events-auto flex items-center gap-2">
+                    {s.grade && !s.drawerOpen && s.grade.tests.length > 0 && !running && (
+                      <Button variant="secondary" onClick={() => s.setDrawer(true)}>
+                        Results {passedCount}/{s.grade.tests.length}
+                      </Button>
+                    )}
+                    <Button size="lg" onClick={run} disabled={running} className="shadow-[0_6px_20px_rgb(152_27_37/0.3)]">
+                      {running ? <LoaderCircle size={18} className="animate-spin" /> : <Play size={17} fill="currentColor" />}
+                      {running ? "Running…" : "Run tests"}
+                    </Button>
                   </div>
-                )}
-                {s.grade && !s.drawerOpen && s.grade.tests.length > 0 && !running && (
-                  <button
-                    onClick={() => s.setDrawer(true)}
-                    className="pointer-events-auto rounded-lg bg-node px-3 py-2 text-[13px] text-node-text ring-1 ring-node-border hover:bg-node-hover"
-                  >
-                    Show results ({s.grade.tests.filter((t) => t.passed).length}/{s.grade.tests.length})
-                  </button>
-                )}
-                <button
-                  onClick={run}
-                  disabled={running}
-                  className="pointer-events-auto flex items-center gap-2 rounded-xl bg-crimson px-5 py-3 text-[15px] font-medium text-white shadow-[0_8px_24px_rgb(152_27_37/0.45)] transition hover:bg-[#ad202b] disabled:opacity-70"
-                >
-                  {running ? <LoaderCircle size={18} className="animate-spin" /> : <Play size={18} fill="currentColor" />}
-                  {running ? "Running…" : "Run tests"}
-                </button>
-              </div>
+                </div>
+              </>
             }
           />
         </div>
@@ -175,10 +175,13 @@ export function Workspace({ level, online }: { level: Level; online: boolean }) 
         )}
       </main>
 
+      {!s.progress.seenIntro[level.id] && <LevelIntro level={level} onStart={() => s.markIntroSeen(level.id)} />}
+
       {selected && (
         <ConfigPanel
           key={selected.id}
           node={selected}
+          step={stepOf[selected.id]}
           level={level}
           fields={fieldsInto(wf, level, selected.id)}
           issue={issueMap[selected.id]}

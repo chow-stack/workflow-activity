@@ -10,7 +10,6 @@ import { usePlay, type Team } from "@/lib/store";
 import { fetchDone, syncDone } from "@/lib/teams";
 import { ScreenGuard } from "../ScreenGuard";
 import { TopBar, unlocked } from "../TopBar";
-import { BossScreen } from "./BossScreen";
 import { Workspace } from "./Workspace";
 
 export function PlayScreen() {
@@ -39,34 +38,18 @@ export function PlayScreen() {
     if (ready && st.team && session?.phase === "running") syncDone(st.team.id, st.progress);
   }, [ready, session?.phase]);
 
-  // Leaving the boss round (or a stale save) can leave the boss canvas selected.
-  const phaseNow = offline ? "running" : session?.phase;
-  useEffect(() => {
-    const st = usePlay.getState();
-    if (ready && phaseNow !== "boss" && st.progress.currentLevel > LEVELS.length) {
-      st.setLevel(LEVELS.find((l) => !st.progress.done[l.id])?.id ?? LEVELS.length);
-    }
-  }, [ready, phaseNow]);
-
   if (!ready || !s.team || (!session && !offline)) {
     return <Centered>Loading…</Centered>;
   }
 
   const phase = offline ? "running" : session!.phase;
-  const clock = phase === "running" || phase === "paused" || phase === "boss" ? formatClock(secondsLeft(session, now)) : null;
+  const clock = phase === "running" || phase === "paused" ? formatClock(secondsLeft(session, now)) : null;
   const leave = () => {
     remove(KEYS.team);
     router.replace("/");
   };
-  const logout = (
-    <button onClick={leave} title="Switch team" className="rounded p-1.5 text-ink-muted hover:bg-line/60 hover:text-ink">
-      <LogOut size={16} />
-    </button>
-  );
-
-  const pickable = (id: number) => unlocked(s.progress, id);
-  const current = s.progress.currentLevel <= LEVELS.length ? s.progress.currentLevel : LEVELS.find((l) => !s.progress.done[l.id])?.id ?? 8;
-  const level = levelById(current)!;
+  const level = levelById(Math.min(s.progress.currentLevel, LEVELS.length))!;
+  const total = Object.values(s.progress.done).reduce((a, d) => a + d.points, 0);
 
   return (
     <ScreenGuard>
@@ -76,37 +59,39 @@ export function PlayScreen() {
           progress={s.progress}
           clock={clock}
           paused={phase === "paused"}
-          onPick={phase === "running" || phase === "paused" ? (id) => pickable(id) && s.setLevel(id) : undefined}
-          right={logout}
+          onPick={phase === "running" || phase === "paused" ? (id) => unlocked(s.progress, id) && s.setLevel(id) : undefined}
+          right={
+            <button onClick={leave} title="Switch team" className="rounded-full p-1.5 text-muted hover:bg-sand hover:text-ink">
+              <LogOut size={15} />
+            </button>
+          }
         />
         {offline && (
-          <div className="flex items-center justify-center gap-2 bg-warn/15 py-1.5 text-[12.5px] text-warn">
-            <WifiOff size={14} /> Offline. Your progress is saved on this laptop and will sync when the connection is back.
+          <div className="flex items-center justify-center gap-2 bg-warn-soft py-1.5 text-[13px] text-warn">
+            <WifiOff size={14} /> Offline. Progress is saved on this laptop and will sync when the connection is back.
           </div>
         )}
 
         {phase === "lobby" && (
-          <Centered icon={<Hourglass size={28} />} title={`You're in, ${s.team.name}.`}>
-            Waiting for the host to start. Keep this screen open.
+          <Centered icon={<Hourglass size={26} />} title={`You're in, ${s.team.name}.`}>
+            Waiting for the host to start. While you wait: decide who reads the scenario out loud and who checks the results.
           </Centered>
         )}
         {(phase === "running" || phase === "paused") && (
           <div className="relative flex min-h-0 flex-1">
             <Workspace key={level.id} level={level} online={!offline} />
             {phase === "paused" && (
-              <div className="absolute inset-0 z-40 grid place-items-center bg-cream/85 backdrop-blur-sm">
-                <Centered icon={<Pause size={28} />} title="Paused">
+              <div className="absolute inset-0 z-50 grid place-items-center bg-paper/85 backdrop-blur-sm">
+                <Centered icon={<Pause size={26} />} title="Paused">
                   Eyes up front. The clock is stopped.
                 </Centered>
               </div>
             )}
           </div>
         )}
-        {phase === "boss" && <BossScreen />}
         {phase === "ended" && (
-          <Centered icon={<Trophy size={28} />} title="That's time!">
-            You finished with {Object.values(s.progress.done).reduce((a, d) => a + d.points, 0).toLocaleString()} points. Check the big
-            screen for the final standings.
+          <Centered icon={<Trophy size={26} />} title="That's time!">
+            You finished with {total.toLocaleString()} points. Check the big screen for the final standings.
           </Centered>
         )}
       </div>
@@ -118,9 +103,9 @@ export function Centered({ icon, title, children }: { icon?: ReactNode; title?: 
   return (
     <div className="grid flex-1 place-items-center p-8">
       <div className="max-w-md text-center">
-        {icon && <div className="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-crimson/10 text-crimson">{icon}</div>}
-        {title && <h1 className="font-display text-3xl">{title}</h1>}
-        <p className="mt-2 text-[15px] text-ink-muted">{children}</p>
+        {icon && <div className="mx-auto mb-5 grid size-14 place-items-center rounded-full bg-crimson-soft text-crimson">{icon}</div>}
+        {title && <h1 className="display text-[32px] leading-tight">{title}</h1>}
+        <p className="mt-2 text-[15.5px] leading-relaxed text-muted">{children}</p>
       </div>
     </div>
   );

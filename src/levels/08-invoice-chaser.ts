@@ -73,14 +73,10 @@ export const level: Level = {
   title: "Invoice Chaser",
   tier: "expert",
   points: 400,
-  teaches: "Everything together: a loop, an AI step that needs context, and a summary after the loop.",
-  brief:
-    "A freelance bookkeeping business chases late invoices every morning at 9 AM. For each UNPAID invoice MORE than 30 days overdue, email the client a polite reminder that mentions the client name, invoice number and amount. Then post ONE Slack summary in #owner: how many overdue invoices and the total outstanding.",
-  goals: [
-    "Unpaid AND more than 30 days overdue",
-    "One reminder email per invoice, to the client, with name, invoice number and amount",
-    "One Slack message in #owner with the count and total",
-  ],
+  skill: "Putting it all together",
+  scenario: "A freelance bookkeeper has clients who pay late. Every morning they check the Invoices sheet and chase the overdue ones.",
+  task: "Every day at 9 AM, remind each late client by email, then post one summary for the owner.",
+  goals: ["Only invoices that are Unpaid AND more than 30 days overdue", "One reminder email per invoice, to the client, mentioning client name, invoice number and amount", "One Slack message in #owner with how many are overdue and the total"],
   trigger: "schedule",
   palette: ["trigger.schedule", "data.readSheet", "data.forEach", "logic.filter", "logic.ifElse", "ai.write", "data.combine", "action.email", "action.slack"],
   channels: ["#owner", "#general"],

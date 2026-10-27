@@ -1,8 +1,8 @@
 # Workflow Activity — Build Spec
 
-Gen AI Club automation meeting. Teams build automation workflows on an n8n-style canvas, run them against hidden test cases, and climb a live leaderboard. Eight graded levels, then a design-only boss round.
+Gen AI Club automation meeting. Teams build automation workflows on a Zapier-style canvas, run them against hidden test cases, and climb a live leaderboard. Eight graded levels.
 
-Status: draft v1 · 2026-10-27
+Status: v2 · 2026-10-27 (boss round and host passcode removed; Zapier-style light redesign)
 
 ---
 
@@ -10,15 +10,15 @@ Status: draft v1 · 2026-10-27
 
 | Topic | Decision |
 |---|---|
-| Format | ~10 min talk → ~30 min graded levels → ~10 min boss round → wrap-up |
+| Format | ~10 min talk → ~35–40 min graded levels → wrap-up |
 | Teams | Groups of 3–4. **One team captain per team** runs the platform on one laptop; the rest of the team talks it through. No join codes, no member accounts. |
 | AI | **Fully simulated.** No live model calls, no API keys. AI blocks return fixed answers per test input. |
 | Grading | By **output**, not by graph shape. Any workflow that produces the right Slack messages / emails / sheet rows passes. |
 | Execution | Entirely client-side (browser). |
-| Backend | None beyond Supabase for teams, completions, session state, boss submissions, and the realtime leaderboard. |
+| Backend | None beyond Supabase for teams, completions, session state, and the realtime leaderboard. |
 | Hosting | Vercel |
 | Devices | Laptop only (≥1280px wide). Below 1024px show a "use a laptop" screen. |
-| Design | genaiiu.com look for app chrome (cream, Playfair, crimson). n8n-style dark canvas re-tinted to club maroon. |
+| Design | Zapier's design system (light only, paper-thin surfaces, hairline borders, pill buttons, Inter + wide display face) using genaiiu.com's logo and colors (crimson, cream, warm brown ink). |
 
 ---
 
@@ -33,7 +33,7 @@ Status: draft v1 · 2026-10-27
 | Engine | Pure TS module in `src/engine/`, no React imports |
 | Tests | Vitest (engine + every level's reference and trap solutions) |
 | Data | Supabase (Postgres + Realtime), `@supabase/supabase-js` |
-| Fonts | `next/font/google`: Playfair Display, DM Sans, JetBrains Mono |
+| Fonts | `next/font/google`: Inter (UI), Bricolage Grotesque (display, stands in for Zapier's Degular), JetBrains Mono (field names) |
 | Icons | lucide-react |
 
 ---
@@ -44,8 +44,8 @@ Status: draft v1 · 2026-10-27
 |---|---|---|
 | `/` | Captain | Create team (team name only) or rejoin an existing team by name |
 | `/play` | Captain | Level brief + canvas + config panel + results |
-| `/board` | Projector | Live leaderboard, countdown, boss gallery |
-| `/host` | Organizer | Passcode-gated controls: start / pause / +5 min / start boss / end / reset |
+| `/board` | Projector | Live leaderboard and countdown |
+| `/host` | Organizer | Open controls (no passcode): start / pause / +5 min / end / reset |
 
 ### 3.1 Session phases
 Stored in Supabase `session` row; every client subscribes via Realtime.
@@ -54,8 +54,7 @@ Stored in Supabase `session` row; every client subscribes via Realtime.
 |---|---|---|
 | `lobby` | "Waiting for the host to start" + team name | Joined teams list |
 | `running` | Levels 1–8, countdown to `ends_at` | Leaderboard + countdown |
-| `boss` | Boss canvas (design only) | Leaderboard frozen + "Boss round" countdown |
-| `ended` | Final score, read-only | Final standings, then boss gallery |
+| `ended` | Final score, read-only | Final standings |
 
 Host can pause (`running` → `paused`, stores remaining seconds) and resume.
 
@@ -79,8 +78,8 @@ Host can pause (`running` → `paused`, stores remaining seconds) and resume.
 ```sql
 create table session (
   id int primary key default 1 check (id = 1),
-  phase text not null default 'lobby',      -- lobby | running | paused | boss | ended
-  ends_at timestamptz,                      -- running/boss countdown target
+  phase text not null default 'lobby',      -- lobby | running | paused | ended
+  ends_at timestamptz,                      -- countdown target
   paused_remaining_s int
 );
 
@@ -101,21 +100,12 @@ create table completions (
   primary key (team_id, level)
 );
 
-create table boss_submissions (
-  team_id uuid primary key references teams on delete cascade,
-  title text not null,
-  problem text not null,
-  workflow jsonb not null,
-  submitted_at timestamptz default now()
-);
 ```
 
 **RLS**
 - `anon`: `select` on all four tables; `insert` on `teams` (any phase but `ended`) and `completions` (only while `running`). No `update`/`delete`.
-- Host controls go through `host_action(passcode, action, minutes)`, a `security definer` function that checks a bcrypt hash in `private.host_secret`. No service-role key in the app and no API routes. (Built 2026-10-27; replaces the `/api/host/*` + service-role plan.)
-- Boss designs go through `submit_boss(...)` (upsert, only during `boss`).
-- Realtime enabled on `session`, `teams`, `completions`, `boss_submissions`.
-- Change the passcode: `update private.host_secret set passcode_hash = extensions.crypt('<new>', extensions.gen_salt('bf'));`
+- Host controls go through `host_action(action, minutes)`, a `security definer` function anyone can call. There is no passcode (user decision, 2026-10-27): anyone who finds `/host` can pause, end or reset the session. No service-role key in the app and no API routes.
+- Realtime enabled on `session`, `teams`, `completions`.
 
 **Env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Both are public by design.
 
@@ -136,7 +126,6 @@ Grading is client-side, so scores are trust-based. Accepted.
 - Each hint used: −25% of that level's points (2 hints max → 50% floor).
 - Skip: 0.
 - Leaderboard order: points desc → levels cleared desc → time of latest completion asc.
-- Boss round is not scored in-app; winner by room vote.
 
 ---
 
@@ -401,102 +390,31 @@ Assertion addition: `bodyExcludes?: string[]`.
 
 ---
 
-### Boss · Design Your Own · not scored
-**Brief:** Pick a real annoying task from your life, job, club, or a business you know. Design the workflow that would automate it.
-- Full palette, no tests, Run disabled.
-- Form: **Title** (≤60 chars), **Problem it solves** (≤140 chars), **Submit design**.
-- Submits `{ title, problem, workflow JSON }` through a `security definer` Postgres function `submit_boss(team_id, title, problem, workflow)` granted to anon, which upserts (`on conflict do update`). Resubmitting overwrites; anon still has no direct update rights.
-- `/board` in `ended` phase shows a gallery: read-only React Flow render of each submission + title + problem. Host clicks through full-screen; room votes by hand.
-
----
-
 ## 10. Design
 
-### 10.1 Split
-- **App chrome** (join page, top bar, brief panel, config panel, results, `/board`, `/host`): genaiiu.com — light, editorial.
-- **Canvas**: n8n structure, club colors — dark maroon-black, dotted grid, glowing data flow.
+Zapier's system, light mode only, with genaiiu.com's logo and colors. Tokens live in `src/app/globals.css`.
 
-### 10.2 Tokens
+| Token | Value | Use |
+|---|---|---|
+| `paper` | `#fffefc` | Page, cards, inputs (warm white, never `#fff`) |
+| `cream` | `#f7f5f2` | Side panels, canvas (genaiiu background) |
+| `sand` | `#efebe7` | Hover, inset wells |
+| `line` / `line-strong` | `#e5e0dc` / `#d2c9c4` | Hairline borders (genaiiu) |
+| `ink` / `ink-2` / `muted` | `#2e1f1f` / `#4a3b3b` / `#7e6767` | Text (genaiiu warm browns) |
+| `crimson` | `#981b25` | The one accent: primary buttons, current level, task card, data flowing during a run |
+| `pass` / `fail` / `warn` | green / red / amber + soft tints | Test results and to-dos |
+| Category tints | trigger orange, data amber, logic blue, AI violet, action green | Step icon tiles only |
 
-```css
-:root {
-  /* Chrome — genaiiu.com (measured 2026-10-27) */
-  --cream: #F7F5F2;          /* page background */
-  --ink: #2E1F1F;            /* text */
-  --ink-muted: #7E6767;      /* secondary text */
-  --line: #E5E0DC;           /* borders, dividers */
-  --crimson: #981B25;        /* primary buttons, active states */
-  --crimson-tint: rgba(152, 27, 37, 0.1);
-  --surface: #FFFFFF;        /* cards on cream */
+- **Type:** Inter for everything functional; Bricolage Grotesque 600 with slightly open tracking (`.display`) for headings; small uppercase crimson eyebrows above titles.
+- **Shapes:** pill buttons (`rounded-full`), 8px cards, 4px inputs, hairline rings instead of shadows.
+- **Canvas:** cream dotted grid; steps are paper cards with a tinted icon, "N · Category" label, name, and a one-line summary or an amber to-do ("Pick a sheet."). Edges turn crimson and show item counts during a run.
 
-  /* Canvas — n8n structure, club palette */
-  --canvas-bg: #1A1213;
-  --canvas-dot: #3A2A2B;
-  --node-bg: #261B1C;
-  --node-border: #3D2C2D;
-  --node-text: #EDE6E3;
-  --node-muted: #A8999A;
-  --edge-idle: #5A4446;
-  --edge-flow: linear-gradient(90deg, #981B25, #F07A3D);  /* animated during runs */
-
-  /* Node categories (left accent bar + icon tile) */
-  --cat-trigger: #D9434F;
-  --cat-data: #E0A44B;
-  --cat-logic: #7C93C3;
-  --cat-ai: #C77DBA;
-  --cat-action: #6FAF8A;
-
-  /* Status */
-  --pass: #3E9B6A;
-  --fail: #D64545;
-  --warn: #C98A1B;
-
-  /* Type */
-  --font-display: "Playfair Display", serif;   /* 500 */
-  --font-ui: "DM Sans", sans-serif;            /* 400, 500 */
-  --font-mono: "JetBrains Mono", monospace;    /* data payloads */
-
-  /* Radii */
-  --r-input: 8px; --r-button: 8px; --r-node: 12px; --r-card: 16px; --r-pill: 9999px;
-}
-```
-
-### 10.3 `/play` layout (≥1280px)
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│ Logo · Team name      ① ② ③ ④ ⑤ ⑥ ⑦ ⑧          ⏱ 24:13   1,150 pts │  top bar, cream
-├──────────────┬───────────────────────────────────────┬───────────────┤
-│ LEVEL BRIEF  │                                       │ NODE CONFIG   │
-│ Playfair h2  │        dark dotted canvas             │ (slides in    │
-│ scenario     │   [Trigger]──▶[Filter]──▶[Slack]      │  when a node  │
-│ goal list    │                                       │  is selected) │
-│ sample input │                          ＋ Add node  │ fields, chips │
-│ Hints (2)    │                         ▶ Run tests   │               │
-├──────────────┴───────────────────────────────────────┴───────────────┤
-│ RESULTS (slides up after run): test cards · World tabs: Slack | Email │
-│ | Sheets — shows what the workflow actually produced                  │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-- Brief panel 320px, config panel 360px, results drawer ~40% height.
-- **Add node**: n8n-style searchable menu grouped by category, opens from the `＋` button or by dragging off an output handle.
-- **Node**: 12px radius, `--node-bg`, 4px left bar in category color, 32px icon tile, title + one-line config summary ("ends with any of 3 domains"). Selected: crimson ring. Error: red badge top-right.
-- **Edges**: smooth-step bezier, `--edge-idle`; labeled handles on If/Else and Switch outputs.
-
-### 10.4 Run animation
-For the **first test case only** (keeps it fast): nodes execute in order, edges carry an animated crimson→ember dash along the path items took, item count badge on each edge ("3 items"), each node ends with a green check or red ✕. AI nodes show a 400ms "thinking" shimmer. Remaining tests grade instantly. Then results drawer opens.
-
-### 10.5 Results drawer
-- One card per test: ✓/✕, label, and on fail a plain-English reason ("Expected 1 Slack message in #recruiting, got 0").
-- Hidden tests show title only until the first run, then their input.
-- **World tabs** render outputs as mini UIs: Slack (channel + message bubbles), Email (inbox list), Sheets (table). Monospace for raw values.
-- All pass → full-width success banner, points earned, **Next level**.
-
-### 10.6 `/board` (projector)
-Light theme, very large type. Columns: rank · team · 8 progress pips (filled crimson = cleared, outlined = not, gray = skipped) · points. Countdown top right. Small ticker: "Team X just cleared Level 6." Top 3 rows get a subtle crimson tint.
-
----
+### 10.1 Making it easy to follow
+- **Level intro card** the first time a level opens: situation → task (highlighted) → "You're done when" checklist → Start building. Level 1 adds a 3-step "how it works".
+- **Mission panel** (left, always visible): the same three blocks plus example data shown as label/value records, test count, and hints.
+- **Guide bar** (top of canvas): 3-step progress (trigger → set up steps → run) and one sentence saying the next action, e.g. "Finish setting up Add sheet row: Pick a sheet." Clicking it opens that step.
+- **Add step** attaches the new step after the selected (or last) step automatically, so simple chains need no dragging.
+- **Results drawer:** "N of M tests passed" with a pass/fail bar; each test shows "What went wrong" in plain sentences, "What your workflow did" (Slack/email/sheet previews) and "Data we sent in".
 
 ## 11. Repo structure
 
@@ -507,12 +425,12 @@ src/
     types.ts  template.ts  conditions.ts  schedule.ts  ai.ts
     nodes.ts                 # node catalog: defaults, validation, field propagation, summaries, run
     graph.ts  fields.ts  validate.ts  run.ts  grade.ts  build.ts
-  levels/                    # 01-…08-*.ts, boss.ts, index.ts
+  levels/                    # 01-…08-*.ts, index.ts
   components/
     canvas/                  # Canvas (React Flow), NodeCard, FlowEdge, AddNodeMenu, icons
     panels/                  # BriefPanel, ConfigPanel, ResultsDrawer, DataPreview, fields
-    play/                    # PlayScreen (phase gating), Workspace (run + animation), BossScreen
-    JoinScreen  BoardScreen  HostScreen  TopBar  ScreenGuard
+    play/                    # PlayScreen (phase gating), Workspace (run + animation), LevelIntro, GuideBar
+    JoinScreen  BoardScreen  HostScreen  TopBar  ScreenGuard  ui (Button, Logo, Eyebrow)
   lib/                       # supabase, live (realtime hooks), store (zustand), teams, scoring, storage
 supabase/migrations/0001_init.sql
 tests/                       # engine.test.ts, levels.test.ts (reference + trap solutions)
@@ -560,8 +478,7 @@ export const level: Level = {
 6. Schedule, If/Else, Switch, AI nodes (simulated). Levels 2, 5, 6.
 7. Read sheet, For each, Combine. Levels 7, 8.
 8. Supabase: migration, team create/rejoin, completions, session phases, `/host`, `/board` realtime.
-9. Boss mode + gallery.
-10. Polish, hint/skip flow, small-screen guard, dry run, fixes.
+9. Polish, hint/skip flow, small-screen guard, dry run, fixes.
 
 ---
 
@@ -569,13 +486,13 @@ export const level: Level = {
 
 - Site down / wifi fails: printed (or slide) version of the 8 scenarios; teams sketch workflows on paper, organizer judges.
 - Supabase down: `/play` keeps working from localStorage; leaderboard replaced by teams calling out their level.
-- n8n cloud trial set up as a demo backup for the talk.
+- A Zapier or n8n free account set up as a demo backup for the talk.
 
 ---
 
 ## 15. Out of scope
 
-Live AI calls / API keys · multiple players per team · accounts or auth beyond the host passcode · calendar, files, webhooks, code nodes · mobile layout · anti-cheat · saving workflows across devices.
+Live AI calls / API keys · multiple players per team · accounts or auth of any kind (including for /host) · boss/design round · calendar, files, webhooks, code nodes · mobile layout · anti-cheat · saving workflows across devices.
 
 ---
 
@@ -584,5 +501,5 @@ Live AI calls / API keys · multiple players per team · accounts or auth beyond
 - Meeting date, room, expected turnout (→ number of teams).
 - New Supabase project or an existing one?
 - Domain: Vercel subdomain or a genaiiu.com subdomain?
-- Who holds `HOST_PASSCODE` and runs `/host` during the meeting?
+- Who runs `/host` during the meeting? (Anyone with the link can control it.)
 - Does the talk include a live demo of Level 1 on the platform?

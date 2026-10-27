@@ -4,7 +4,7 @@ import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_LABEL, CATEGORY_ORDER, NODES } from "@/engine/nodes";
 import type { NodeType } from "@/engine/types";
-import { CATEGORY_COLOR, NODE_ICON } from "./icons";
+import { NODE_ICON, tileStyle } from "./icons";
 
 interface Props {
   palette: NodeType[];
@@ -25,7 +25,7 @@ export function AddNodeMenu({ palette, hasTrigger, onPick, onClose }: Props) {
       items: palette.filter((t) => {
         const d = NODES[t];
         if (d.category !== cat) return false;
-        // Triggers come first; once there is one, they're hidden.
+        // Until there's a trigger, only triggers are offered; after that, triggers are hidden.
         if (cat === "trigger" ? hasTrigger : !hasTrigger) return false;
         return !needle || d.label.toLowerCase().includes(needle) || d.description.toLowerCase().includes(needle);
       }),
@@ -35,19 +35,24 @@ export function AddNodeMenu({ palette, hasTrigger, onPick, onClose }: Props) {
   const first = groups[0]?.items[0];
 
   return (
-    <div className="absolute inset-0 z-30 flex items-start justify-end bg-black/20 p-4" onMouseDown={onClose}>
+    <div className="absolute inset-0 z-30 flex items-start justify-center bg-ink/10 p-6 pt-16" onMouseDown={onClose}>
       <div
-        className="animate-pop flex max-h-full w-[360px] flex-col overflow-hidden rounded-card bg-node text-node-text shadow-2xl ring-1 ring-node-border"
+        className="animate-pop flex max-h-full w-[440px] flex-col overflow-hidden rounded-lg bg-paper shadow-[0_12px_40px_rgb(46_31_31/0.16)] ring-1 ring-line"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 pt-4">
-          <div className="text-sm font-medium">{hasTrigger ? "What happens next?" : "What starts this workflow?"}</div>
-          <button onClick={onClose} className="rounded p-1 text-node-muted hover:bg-node-hover hover:text-node-text" aria-label="Close">
-            <X size={16} />
+        <div className="flex items-start justify-between px-5 pt-5">
+          <div>
+            <div className="display text-[20px]">{hasTrigger ? "Add a step" : "Choose a trigger"}</div>
+            <div className="mt-0.5 text-[13px] text-muted">
+              {hasTrigger ? "What should happen next?" : "A trigger is the event that starts your workflow."}
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1.5 text-muted hover:bg-sand hover:text-ink" aria-label="Close">
+            <X size={17} />
           </button>
         </div>
-        <label className="mx-4 mt-3 flex items-center gap-2 rounded-lg bg-canvas px-3 py-2 ring-1 ring-node-border focus-within:ring-ember/60">
-          <Search size={15} className="text-node-muted" />
+        <label className="mx-5 mt-4 flex items-center gap-2 rounded border border-line-strong bg-paper px-3 py-2.5 focus-within:border-ink">
+          <Search size={15} className="text-faint" />
           <input
             ref={input}
             value={q}
@@ -56,15 +61,15 @@ export function AddNodeMenu({ palette, hasTrigger, onPick, onClose }: Props) {
               if (e.key === "Enter" && first) onPick(first);
               if (e.key === "Escape") onClose();
             }}
-            placeholder="Search steps…"
-            className="w-full bg-transparent text-sm outline-none placeholder:text-node-muted"
+            placeholder="Search"
+            className="w-full bg-transparent text-[14px] outline-none placeholder:text-faint"
           />
         </label>
-        <div className="mt-2 overflow-y-auto px-2 pb-3">
-          {groups.length === 0 && <div className="px-3 py-6 text-center text-sm text-node-muted">No matching steps.</div>}
+        <div className="mt-2 overflow-y-auto px-3 pb-4">
+          {groups.length === 0 && <div className="px-3 py-6 text-center text-[14px] text-muted">Nothing matches that.</div>}
           {groups.map(({ cat, items }) => (
-            <div key={cat} className="mt-2">
-              <div className="px-3 pb-1 text-[11px] font-medium tracking-wider text-node-muted uppercase">{CATEGORY_LABEL[cat]}</div>
+            <div key={cat} className="mt-3">
+              <div className="px-2 pb-1.5 text-[11.5px] font-semibold tracking-[0.06em] text-muted uppercase">{CATEGORY_LABEL[cat]}</div>
               {items.map((t) => {
                 const d = NODES[t];
                 const Icon = NODE_ICON[t];
@@ -72,17 +77,14 @@ export function AddNodeMenu({ palette, hasTrigger, onPick, onClose }: Props) {
                   <button
                     key={t}
                     onClick={() => onPick(t)}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-node-hover"
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-cream"
                   >
-                    <span
-                      className="grid size-8 shrink-0 place-items-center rounded-lg"
-                      style={{ background: `color-mix(in srgb, ${CATEGORY_COLOR[cat]} 18%, transparent)`, color: CATEGORY_COLOR[cat] }}
-                    >
-                      <Icon size={16} />
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg" style={tileStyle(cat)}>
+                      <Icon size={17} />
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-[13.5px]">{d.label}</span>
-                      <span className="block truncate text-[11.5px] text-node-muted">{d.description}</span>
+                      <span className="block text-[14px] font-medium">{d.label}</span>
+                      <span className="block truncate text-[12.5px] text-muted">{d.description}</span>
                     </span>
                   </button>
                 );

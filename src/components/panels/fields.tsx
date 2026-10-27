@@ -4,13 +4,13 @@ import { useRef, type ReactNode } from "react";
 import type { FieldInfo } from "@/engine/types";
 
 export const inputCls =
-  "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-muted/60 focus:border-crimson/50 focus:ring-2 focus:ring-crimson/15";
+  "w-full rounded border border-line-strong bg-paper px-3 py-2 text-[14px] text-ink outline-none transition placeholder:text-faint focus:border-ink";
 
 export function Label({ children, hint }: { children: ReactNode; hint?: ReactNode }) {
   return (
     <div className="mb-1.5 flex items-baseline justify-between gap-2">
-      <span className="text-[12.5px] font-medium text-ink">{children}</span>
-      {hint && <span className="text-[11px] text-ink-muted">{hint}</span>}
+      <span className="text-[13px] font-semibold text-ink">{children}</span>
+      {hint && <span className="text-[12px] text-muted">{hint}</span>}
     </div>
   );
 }
@@ -24,8 +24,6 @@ export function Section({ label, hint, children }: { label: string; hint?: React
   );
 }
 
-const KIND_MARK: Record<FieldInfo["kind"], string> = { text: "Aa", number: "#", list: "[ ]", rows: "▦" };
-
 export function Chip({ field, onClick }: { field: FieldInfo; onClick: () => void }) {
   return (
     <button
@@ -33,9 +31,8 @@ export function Chip({ field, onClick }: { field: FieldInfo; onClick: () => void
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       title={`Insert {{${field.name}}}`}
-      className="inline-flex items-center gap-1 rounded-full border border-crimson/20 bg-crimson/[0.06] px-2 py-0.5 font-mono text-[11px] text-crimson transition hover:border-crimson/50 hover:bg-crimson/10"
+      className="inline-flex items-center rounded bg-crimson-soft px-1.5 py-0.5 font-mono text-[11.5px] text-crimson transition hover:bg-crimson hover:text-paper"
     >
-      <span className="text-[9px] opacity-60">{KIND_MARK[field.kind]}</span>
       {field.name}
     </button>
   );
@@ -64,8 +61,7 @@ export function TemplateInput({
     if (!el) return onChange(value + token);
     const start = el.selectionStart ?? value.length;
     const end = el.selectionEnd ?? value.length;
-    const next = value.slice(0, start) + token + value.slice(end);
-    onChange(next);
+    onChange(value.slice(0, start) + token + value.slice(end));
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(start + token.length, start + token.length);
@@ -81,19 +77,14 @@ export function TemplateInput({
           rows={rows}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={`${inputCls} resize-y font-mono text-[12.5px] leading-relaxed`}
+          className={`${inputCls} resize-y leading-relaxed`}
         />
       ) : (
-        <input
-          ref={ref}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className={`${inputCls} font-mono text-[12.5px]`}
-        />
+        <input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={inputCls} />
       )}
       {usable.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          <span className="mr-0.5 text-[11.5px] text-muted">Insert:</span>
           {usable.map((f) => (
             <Chip key={f.name} field={f} onClick={() => insert(f.name)} />
           ))}
@@ -108,7 +99,7 @@ export function FieldSelect({
   onChange,
   fields,
   kinds,
-  placeholder = "Pick a field…",
+  placeholder = "Choose a field…",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -119,7 +110,7 @@ export function FieldSelect({
   const options = fields.filter((f) => !kinds || kinds.includes(f.kind));
   const missing = value && !options.some((f) => f.name === value);
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={`${inputCls} font-mono text-[12.5px]`}>
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
       <option value="">{placeholder}</option>
       {missing && <option value={value}>{value} (not available here)</option>}
       {options.map((f) => (

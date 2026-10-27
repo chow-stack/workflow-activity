@@ -43,3 +43,17 @@ export const CATEGORY_COLOR: Record<Category, string> = {
   ai: "var(--color-cat-ai)",
   action: "var(--color-cat-action)",
 };
+
+export const CATEGORY_WORD: Record<Category, string> = {
+  trigger: "Trigger",
+  data: "Data",
+  logic: "Logic",
+  ai: "AI",
+  action: "Action",
+};
+
+/** Tinted icon tile used on nodes, the step menu and the config panel. */
+export function tileStyle(cat: Category) {
+  const c = CATEGORY_COLOR[cat];
+  return { background: `color-mix(in srgb, ${c} 11%, var(--color-paper))`, color: c };
+}

@@ -1,72 +1,90 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
 
-/* Chrome: genaiiu.com (measured 2026-10-27). Canvas: n8n structure in club colors. */
+/*
+ * Design: Zapier's system (light, paper-thin surfaces, hairline borders, pill buttons, Inter + a wide display face)
+ * with genaiiu.com's colors (crimson accent, warm cream, warm brown ink).
+ */
 @theme {
-  --color-cream: #f7f5f2;
-  --color-ink: #2e1f1f;
-  --color-ink-muted: #7e6767;
-  --color-line: #e5e0dc;
-  --color-crimson: #981b25;
+  --color-paper: #fffefc; /* canvas, cards, inputs */
+  --color-cream: #f7f5f2; /* side panels, bands (genaiiu background) */
+  --color-sand: #efebe7; /* inset wells, hover */
+  --color-line: #e5e0dc; /* hairline borders (genaiiu) */
+  --color-line-strong: #d2c9c4;
+  --color-ink: #2e1f1f; /* primary text (genaiiu) */
+  --color-ink-2: #4a3b3b;
+  --color-muted: #7e6767; /* secondary text (genaiiu) */
+  --color-faint: #ada29f;
+  --color-crimson: #981b25; /* the one accent (genaiiu) */
   --color-crimson-dark: #7d1620;
-  --color-surface: #ffffff;
+  --color-crimson-soft: #f6e8e9;
 
-  --color-canvas: #1a1213;
-  --color-canvas-dot: #4a3537;
-  --color-node: #261b1c;
-  --color-node-hover: #2e2122;
-  --color-node-border: #3d2c2d;
-  --color-node-text: #ede6e3;
-  --color-node-muted: #a8999a;
-  --color-edge: #5a4446;
-  --color-ember: #f07a3d;
+  --color-pass: #2f7d55;
+  --color-pass-soft: #e8f3ec;
+  --color-fail: #c0392b;
+  --color-fail-soft: #fbecea;
+  --color-warn: #a86a12;
+  --color-warn-soft: #fbf2e2;
 
-  --color-cat-trigger: #d9434f;
-  --color-cat-data: #e0a44b;
-  --color-cat-logic: #7c93c3;
-  --color-cat-ai: #c77dba;
-  --color-cat-action: #6faf8a;
+  --color-canvas: #f7f5f2;
+  --color-dot: #dbd3ce;
+  --color-edge: #c4b9b4;
 
-  --color-pass: #3e9b6a;
-  --color-fail: #d64545;
-  --color-warn: #c98a1b;
+  --color-cat-trigger: #c2410c;
+  --color-cat-data: #a16207;
+  --color-cat-logic: #2b6cb0;
+  --color-cat-ai: #7c3aed;
+  --color-cat-action: #2f7d55;
 
-  --font-display: var(--font-playfair), Georgia, serif;
-  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-inter), ui-sans-serif, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
-
-  --radius-node: 12px;
-  --radius-card: 16px;
 }
 
 html,
 body {
-  background: var(--color-cream);
+  background: var(--color-paper);
   color: var(--color-ink);
 }
 
 body {
   font-family: var(--font-sans);
+  letter-spacing: -0.01em;
 }
 
 ::selection {
-  background: rgb(152 27 37 / 0.18);
+  background: rgb(152 27 37 / 0.15);
 }
 
-/* ---- React Flow overrides ---- */
+/* Display headings: wide, open tracking (Zapier's Degular habit). */
+.display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.012em;
+}
+
+/* Small uppercase label above a heading. */
+.eyebrow {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-crimson);
+}
+
+/* ---- React Flow ---- */
 .react-flow {
   --xy-background-color: var(--color-canvas);
   --xy-edge-stroke: var(--color-edge);
   --xy-edge-stroke-width: 2;
-  --xy-edge-stroke-selected: #c9a3a6;
-  --xy-connectionline-stroke: var(--color-ember);
-  --xy-handle-background-color: #4a3638;
-  --xy-handle-border-color: #6b5153;
-  --xy-controls-button-background-color: var(--color-node);
-  --xy-controls-button-background-color-hover: var(--color-node-hover);
-  --xy-controls-button-color: var(--color-node-text);
-  --xy-controls-button-border-color: var(--color-node-border);
-  --xy-attribution-background-color: transparent;
+  --xy-edge-stroke-selected: var(--color-ink);
+  --xy-connectionline-stroke: var(--color-crimson);
+  --xy-handle-background-color: var(--color-paper);
+  --xy-handle-border-color: var(--color-line-strong);
+  --xy-controls-button-background-color: var(--color-paper);
+  --xy-controls-button-background-color-hover: var(--color-cream);
+  --xy-controls-button-color: var(--color-ink);
+  --xy-controls-button-border-color: var(--color-line);
 }
 .react-flow__attribution {
   display: none;
@@ -76,17 +94,18 @@ body {
   height: 12px;
   border-width: 2px;
 }
-.react-flow__handle:hover {
-  background: var(--color-ember);
+.react-flow__handle:hover,
+.react-flow__handle.connectingfrom {
+  background: var(--color-crimson);
+  border-color: var(--color-crimson);
 }
 .react-flow__controls {
   box-shadow: none;
-  border: 1px solid var(--color-node-border);
+  border: 1px solid var(--color-line);
   border-radius: 8px;
   overflow: hidden;
 }
 
-/* Data flowing along an edge during a run */
 @keyframes flow {
   to {
     stroke-dashoffset: -24;
@@ -99,22 +118,22 @@ body {
 
 @keyframes shimmer {
   0% {
-    background-position: -200px 0;
+    background-position: -260px 0;
   }
   100% {
-    background-position: 200px 0;
+    background-position: 260px 0;
   }
 }
 .ai-thinking {
-  background-image: linear-gradient(90deg, transparent, rgb(199 125 186 / 0.25), transparent);
-  background-size: 200px 100%;
+  background-image: linear-gradient(90deg, transparent, rgb(124 58 237 / 0.12), transparent);
+  background-size: 260px 100%;
   background-repeat: no-repeat;
   animation: shimmer 0.9s linear infinite;
 }
 
 @keyframes pop {
   0% {
-    transform: scale(0.96);
+    transform: scale(0.97);
     opacity: 0;
   }
   100% {
@@ -124,4 +143,18 @@ body {
 }
 .animate-pop {
   animation: pop 0.18s ease-out;
+}
+
+@keyframes rise {
+  0% {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-rise {
+  animation: rise 0.25s ease-out;
 }

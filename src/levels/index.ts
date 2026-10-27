@@ -7,7 +7,6 @@ import { level as l5 } from "./05-review-router";
 import { level as l6 } from "./06-resume-screener";
 import { level as l7 } from "./07-coffee-restock";
 import { level as l8 } from "./08-invoice-chaser";
-export { boss } from "./boss";
 
 export const LEVELS: Level[] = [l1, l2, l3, l4, l5, l6, l7, l8];
 export const MAX_POINTS = LEVELS.reduce((s, l) => s + l.points, 0);

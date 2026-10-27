@@ -137,11 +137,11 @@ function compare<E, A>(
   const msgs: string[] = [];
   const { missing, extra } = matchAll(exp, act, fn);
   if (missing.length === 0 && extra.length === 0) return msgs;
-  if (exp.length !== act.length) msgs.push(`Expected ${plural(exp.length, kind)}, got ${act.length}.`);
-  missing.slice(0, 3).forEach((e) => msgs.push(`Missing ${descE(e)}.`));
-  if (missing.length > 3) msgs.push(`…and ${missing.length - 3} more missing.`);
-  extra.slice(0, 3).forEach((a) => msgs.push(`Unexpected → ${descA(a)}`));
-  if (extra.length > 3) msgs.push(`…and ${extra.length - 3} more unexpected.`);
+  if (exp.length !== act.length) msgs.push(`Your workflow made ${plural(act.length, kind)}, but it should make ${exp.length}.`);
+  missing.slice(0, 3).forEach((e) => msgs.push(`Should have made ${descE(e)}.`));
+  if (missing.length > 3) msgs.push(`…and ${missing.length - 3} more that are missing.`);
+  extra.slice(0, 3).forEach((a) => msgs.push(`Shouldn't have made: ${descA(a)}`));
+  if (extra.length > 3) msgs.push(`…and ${extra.length - 3} more that shouldn't be there.`);
   return msgs;
 }
 

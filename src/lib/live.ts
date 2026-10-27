@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase, type BossRow, type CompletionRow, type SessionRow, type TeamRow } from "./supabase";
+import { supabase, type CompletionRow, type SessionRow, type TeamRow } from "./supabase";
 
 /** Live session row. `offline` is true when Supabase can't be reached. */
 export function useSession() {
@@ -40,32 +40,25 @@ export function useSession() {
   return { session, offline };
 }
 
-/** Teams, completions and boss submissions, kept live. */
+/** Teams and completions, kept live. */
 export function useLeaderboardData() {
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [completions, setCompletions] = useState<CompletionRow[]>([]);
-  const [boss, setBoss] = useState<BossRow[]>([]);
 
   useEffect(() => {
     const db = supabase();
     let alive = true;
     const refresh = async () => {
-      const [t, c, b] = await Promise.all([
-        db.from("teams").select("*").order("created_at"),
-        db.from("completions").select("*"),
-        db.from("boss_submissions").select("*").order("submitted_at"),
-      ]);
+      const [t, c] = await Promise.all([db.from("teams").select("*").order("created_at"), db.from("completions").select("*")]);
       if (!alive) return;
       if (t.data) setTeams(t.data as TeamRow[]);
       if (c.data) setCompletions(c.data as CompletionRow[]);
-      if (b.data) setBoss(b.data as BossRow[]);
     };
     refresh();
     const ch = db
       .channel("board")
       .on("postgres_changes", { event: "*", schema: "public", table: "teams" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "completions" }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "boss_submissions" }, refresh)
       .subscribe();
     const poll = window.setInterval(refresh, 10000);
     return () => {
@@ -75,7 +68,7 @@ export function useLeaderboardData() {
     };
   }, []);
 
-  return { teams, completions, boss };
+  return { teams, completions };
 }
 
 /** Re-renders every second; returns ms since epoch, or 0 before mount (prerender has no clock). */

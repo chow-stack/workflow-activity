@@ -6,11 +6,12 @@ import { OPS } from "@/engine/conditions";
 import { NODES, type ExtractConfig, type FilterConfig, type SwitchConfig } from "@/engine/nodes";
 import { WEEKDAYS } from "@/engine/schedule";
 import type { Condition, Config, FieldInfo, Level, WfNode } from "@/engine/types";
-import { CATEGORY_COLOR, NODE_ICON } from "../canvas/icons";
+import { CATEGORY_WORD, NODE_ICON, tileStyle } from "../canvas/icons";
 import { FieldSelect, Label, Section, Select, TemplateInput, inputCls } from "./fields";
 
 interface Props {
   node: WfNode;
+  step?: number;
   level: Level;
   fields: FieldInfo[];
   issue?: string;
@@ -21,37 +22,37 @@ interface Props {
 
 const str = (c: Config, k: string) => (typeof c[k] === "string" ? (c[k] as string) : "");
 
-export function ConfigPanel({ node, level, fields, issue, onChange, onDelete, onClose }: Props) {
+export function ConfigPanel({ node, step, level, fields, issue, onChange, onDelete, onClose }: Props) {
   const def = NODES[node.type];
   const Icon = NODE_ICON[node.type];
-  const color = CATEGORY_COLOR[def.category];
   const c = node.config;
 
   return (
-    <aside className="flex h-full w-[360px] shrink-0 flex-col border-l border-line bg-cream">
+    <aside className="animate-rise flex h-full w-[380px] shrink-0 flex-col border-l border-line bg-paper">
       <div className="flex items-start gap-3 border-b border-line px-5 py-4">
-        <span
-          className="grid size-10 shrink-0 place-items-center rounded-xl"
-          style={{ background: `color-mix(in srgb, ${color} 16%, white)`, color: `color-mix(in srgb, ${color} 75%, black)` }}
-        >
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg" style={tileStyle(def.category)}>
           <Icon size={19} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="font-display text-xl leading-tight">{def.label}</div>
-          <div className="mt-0.5 text-[12.5px] text-ink-muted">{def.description}</div>
+          <div className="text-[11.5px] font-medium text-muted">
+            {step ? `Step ${step} · ` : ""}
+            {CATEGORY_WORD[def.category]}
+          </div>
+          <div className="display text-[19px] leading-tight">{def.label}</div>
+          <div className="mt-1 text-[13px] leading-snug text-muted">{def.description}</div>
         </div>
-        <button onClick={onClose} className="rounded p-1 text-ink-muted hover:bg-line/60 hover:text-ink" aria-label="Close panel">
+        <button onClick={onClose} className="rounded-full p-1.5 text-muted hover:bg-sand hover:text-ink" aria-label="Close panel">
           <X size={17} />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-5">
-        {issue && <div className="mb-4 rounded-lg border border-fail/25 bg-fail/[0.06] px-3 py-2 text-[12.5px] text-fail">{issue}</div>}
+        {issue && <div className="mb-5 rounded bg-warn-soft px-3 py-2 text-[13px] text-warn">To do: {issue}</div>}
         <Editor node={node} level={level} fields={fields} c={c} onChange={onChange} />
       </div>
 
-      <div className="border-t border-line px-5 py-3">
-        <button onClick={onDelete} className="flex items-center gap-2 text-[13px] text-ink-muted hover:text-fail">
+      <div className="border-t border-line px-5 py-3.5">
+        <button onClick={onDelete} className="flex items-center gap-2 text-[13px] text-muted hover:text-fail">
           <Trash2 size={15} /> Delete step
         </button>
       </div>
@@ -78,7 +79,7 @@ function Editor({
       return (
         <>
           <Section label="Form">
-            <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm">{level.form?.title ?? "Form"}</div>
+            <div className="rounded border border-line bg-cream px-3 py-2 text-[14px]">{level.form?.title ?? "Form"}</div>
           </Section>
           <Section label="Fields this trigger gives you">
             <FieldList names={level.form?.fields ?? []} sample={sample} />
@@ -196,12 +197,12 @@ function Editor({
             <div className="space-y-2">
               {rules.map((r, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="w-14 shrink-0 text-[12px] text-ink-muted">equals</span>
+                  <span className="w-14 shrink-0 text-[12px] text-muted">equals</span>
                   <input
                     value={r}
                     onChange={(e) => onChange({ rules: rules.map((x, j) => (j === i ? e.target.value : x)) })}
                     placeholder={`value ${i + 1}`}
-                    className={`${inputCls} font-mono text-[12.5px]`}
+                    className={`${inputCls}`}
                   />
                   <IconBtn onClick={() => onChange({ rules: rules.filter((_, j) => j !== i) })} disabled={rules.length <= 1} />
                 </div>
@@ -224,11 +225,11 @@ function Editor({
               value={str(c, "labels")}
               onChange={(e) => onChange({ labels: e.target.value })}
               placeholder="e.g. urgent, not urgent"
-              className={`${inputCls} font-mono text-[12.5px]`}
+              className={`${inputCls}`}
             />
           </Section>
           <Section label="Save the answer as">
-            <input value={str(c, "output")} onChange={(e) => onChange({ output: e.target.value })} className={`${inputCls} font-mono text-[12.5px]`} />
+            <input value={str(c, "output")} onChange={(e) => onChange({ output: e.target.value })} className={`${inputCls}`} />
           </Section>
           <Note>The AI picks exactly one of your labels. If none fit, it answers “unknown”.</Note>
         </>
@@ -249,7 +250,7 @@ function Editor({
                     value={f.name}
                     onChange={(ev) => onChange({ fields: list.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)) })}
                     placeholder="field name"
-                    className={`${inputCls} font-mono text-[12.5px]`}
+                    className={`${inputCls}`}
                   />
                   <select
                     value={f.type}
@@ -284,7 +285,7 @@ function Editor({
             />
           </Section>
           <Section label="Save the text as">
-            <input value={str(c, "output")} onChange={(ev) => onChange({ output: ev.target.value })} className={`${inputCls} font-mono text-[12.5px]`} />
+            <input value={str(c, "output")} onChange={(ev) => onChange({ output: ev.target.value })} className={`${inputCls}`} />
           </Section>
           <Note>The AI only knows what you put in the instructions. Click fields to give it the facts it needs.</Note>
         </>
@@ -365,7 +366,7 @@ function ConditionsEditor({ cfg, fields, onChange }: { cfg: FilterConfig; fields
         {conds.map((c, i) => {
           const needsValue = OPS.find((o) => o.op === c.op)?.needsValue ?? true;
           return (
-            <div key={i} className="rounded-xl border border-line bg-surface p-3">
+            <div key={i} className="rounded-lg border border-line bg-cream p-3">
               <div className="flex items-center gap-2">
                 <FieldSelect value={c.field} onChange={(v) => set(i, { field: v })} fields={fields} kinds={["text", "number", "list"]} />
                 <IconBtn onClick={() => onChange({ conditions: conds.filter((_, j) => j !== i) })} disabled={conds.length <= 1} />
@@ -383,7 +384,7 @@ function ConditionsEditor({ cfg, fields, onChange }: { cfg: FilterConfig; fields
                 </div>
               )}
               {i < conds.length - 1 && (
-                <div className="-mb-6 mt-3 text-center text-[11px] font-medium tracking-wider text-ink-muted">
+                <div className="-mb-6 mt-3 text-center text-[11px] font-medium tracking-wider text-muted">
                   {cfg.match === "any" ? "OR" : "AND"}
                 </div>
               )}
@@ -398,11 +399,11 @@ function ConditionsEditor({ cfg, fields, onChange }: { cfg: FilterConfig; fields
 
 function FieldList({ names, sample }: { names: string[]; sample?: Record<string, unknown> }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-surface">
+    <div className="overflow-hidden rounded border border-line bg-paper">
       {names.map((n) => (
         <div key={n} className="flex gap-3 border-b border-line px-3 py-1.5 text-[12.5px] last:border-0">
-          <span className="w-24 shrink-0 font-mono text-crimson">{n}</span>
-          {sample && <span className="truncate text-ink-muted">{String(sample[n] ?? "")}</span>}
+          <span className="w-28 shrink-0 font-mono text-[12px] text-crimson">{n}</span>
+          {sample && <span className="truncate text-muted">{String(sample[n] ?? "")}</span>}
         </div>
       ))}
     </div>
@@ -410,11 +411,11 @@ function FieldList({ names, sample }: { names: string[]; sample?: Record<string,
 }
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="mt-2 text-[12px] leading-relaxed text-ink-muted">{children}</p>;
+  return <p className="mt-2 text-[12.5px] leading-relaxed text-muted">{children}</p>;
 }
 
 function Code({ children }: { children: React.ReactNode }) {
-  return <code className="rounded bg-crimson/[0.07] px-1 font-mono text-[11.5px] text-crimson">{children}</code>;
+  return <code className="rounded bg-crimson-soft px-1 font-mono text-[11.5px] text-crimson">{children}</code>;
 }
 
 function IconBtn({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
@@ -422,7 +423,7 @@ function IconBtn({ onClick, disabled }: { onClick: () => void; disabled?: boolea
     <button
       onClick={onClick}
       disabled={disabled}
-      className="shrink-0 rounded p-1.5 text-ink-muted hover:bg-line/60 hover:text-fail disabled:opacity-30 disabled:hover:bg-transparent"
+      className="shrink-0 rounded p-1.5 text-muted hover:bg-sand hover:text-fail disabled:opacity-30 disabled:hover:bg-transparent"
       aria-label="Remove"
     >
       <X size={15} />

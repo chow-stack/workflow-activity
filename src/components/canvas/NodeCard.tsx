@@ -1,77 +1,91 @@
 "use client";
 
-import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { Check, CircleAlert } from "lucide-react";
 import { memo } from "react";
 import { NODES } from "@/engine/nodes";
 import type { WfNode } from "@/engine/types";
 import type { NodeRunState } from "@/lib/store";
-import { CATEGORY_COLOR, NODE_ICON } from "./icons";
+import { CATEGORY_WORD, NODE_ICON, tileStyle } from "./icons";
 
-export type CardData = { node: WfNode; issue?: string; run?: NodeRunState; readOnly?: boolean };
+export type CardData = {
+  node: WfNode;
+  step?: number; // position in the flow, shown as "1 · Trigger"
+  issue?: string; // what still needs setting up
+  strict?: boolean; // after a Run attempt, issues turn red
+  run?: NodeRunState;
+  readOnly?: boolean;
+};
 export type CardNode = Node<CardData, "wf">;
 
 function NodeCardImpl({ data, selected }: NodeProps<CardNode>) {
-  const { node, issue, run, readOnly } = data;
+  const { node, step, issue, strict, run, readOnly } = data;
   const def = NODES[node.type];
   const Icon = NODE_ICON[node.type];
-  const color = CATEGORY_COLOR[def.category];
   const trigger = def.category === "trigger";
   const outputs = def.outputs(node.config);
   const multi = outputs.length > 1 || outputs[0]?.id !== "out";
 
-  const ring = run === "running"
-    ? "0 0 0 2px var(--color-ember), 0 0 24px rgb(240 122 61 / 0.45)"
-    : selected
-      ? "0 0 0 2px var(--color-crimson), 0 0 0 5px rgb(152 27 37 / 0.25)"
-      : "0 0 0 1px var(--color-node-border)";
+  const ring =
+    run === "running"
+      ? "ring-2 ring-crimson shadow-[0_0_0_6px_rgb(152_27_37/0.12)]"
+      : selected
+        ? "ring-2 ring-ink"
+        : issue && strict
+          ? "ring-1 ring-fail"
+          : "ring-1 ring-line hover:ring-line-strong";
 
   return (
     <div
-      className={`relative w-[232px] bg-node text-node-text transition-[box-shadow,opacity] duration-200 ${
-        trigger ? "rounded-l-[30px] rounded-r-node" : "rounded-node"
-      } ${run === "skipped" ? "opacity-45" : ""} ${run === "running" && def.category === "ai" ? "ai-thinking" : ""}`}
-      style={{ boxShadow: ring }}
+      className={`relative w-[264px] rounded-lg bg-paper transition ${ring} ${run === "skipped" ? "opacity-50" : ""} ${
+        run === "running" && def.category === "ai" ? "ai-thinking" : ""
+      }`}
     >
-      {!trigger && (
-        <Handle type="target" position={Position.Left} id="in" isConnectable={!readOnly} style={{ top: 30 }} />
-      )}
+      {!trigger && <Handle type="target" position={Position.Left} id="in" isConnectable={!readOnly} style={{ top: 34 }} />}
 
-      <div className="flex items-center gap-3 px-3 py-3">
-        <div
-          className={`grid size-9 shrink-0 place-items-center ${trigger ? "rounded-full" : "rounded-lg"}`}
-          style={{ background: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
-        >
+      <div className="flex items-start gap-3 px-3.5 pt-3 pb-2.5">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg" style={tileStyle(def.category)}>
           <Icon size={18} strokeWidth={2} />
-        </div>
-        <div className="min-w-0">
-          <div className="truncate text-[13.5px] font-medium leading-tight">{def.label}</div>
-          <div className="mt-0.5 truncate text-[11.5px] text-node-muted">{def.summary(node.config)}</div>
+        </span>
+        <div className="min-w-0 pt-0.5">
+          <div className="text-[11px] font-medium text-muted">
+            {step ? `${step} · ` : ""}
+            {CATEGORY_WORD[def.category]}
+          </div>
+          <div className="truncate text-[14px] leading-tight font-semibold text-ink">{def.label}</div>
         </div>
       </div>
 
+      <div
+        className={`border-t border-line px-3.5 py-2 text-[12px] leading-snug ${
+          issue ? (strict ? "text-fail" : "text-warn") : "text-muted"
+        }`}
+      >
+        {issue ? (
+          <span className="flex items-center gap-1.5">
+            <CircleAlert size={13} className="shrink-0" />
+            <span className="truncate">{issue}</span>
+          </span>
+        ) : (
+          <span className="block truncate">{def.summary(node.config)}</span>
+        )}
+      </div>
+
       {multi ? (
-        <div className="border-t border-node-border/70 py-1">
+        <div className="border-t border-line py-1">
           {outputs.map((h) => (
-            <div key={h.id} className="relative flex h-6 items-center justify-end pr-4 text-[11px] text-node-muted">
-              <span className="truncate font-mono">{h.label ?? h.id}</span>
+            <div key={h.id} className="relative flex h-7 items-center justify-end pr-4 text-[12px] font-medium text-ink-2">
+              <span className="truncate">{h.label ?? h.id}</span>
               <Handle type="source" position={Position.Right} id={h.id} isConnectable={!readOnly} />
             </div>
           ))}
         </div>
       ) : (
-        <Handle type="source" position={Position.Right} id="out" isConnectable={!readOnly} style={{ top: 30 }} />
+        <Handle type="source" position={Position.Right} id="out" isConnectable={!readOnly} style={{ top: 34 }} />
       )}
 
-      <div className="absolute top-0 left-0 h-full w-[3px] rounded-l-full" style={{ background: color, opacity: trigger ? 0 : 1 }} />
-
-      {issue && !readOnly && (
-        <div title={issue} className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-fail text-white">
-          <CircleAlert size={13} />
-        </div>
-      )}
       {run === "ran" && (
-        <div className="animate-pop absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-pass text-white">
+        <div className="animate-pop absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-pass text-paper">
           <Check size={13} strokeWidth={3} />
         </div>
       )}

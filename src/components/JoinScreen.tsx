@@ -1,13 +1,13 @@
 "use client";
 
-import { ArrowRight, LoaderCircle } from "lucide-react";
+import { ArrowRight, Check, FileText, Hash, LoaderCircle, Tags } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { KEYS, load, save } from "@/lib/storage";
 import type { Team } from "@/lib/store";
 import { createTeam, findTeam } from "@/lib/teams";
-import { Logo } from "./TopBar";
 import { inputCls } from "./panels/fields";
+import { Button, Eyebrow, Logo } from "./ui";
 
 export function JoinScreen() {
   const router = useRouter();
@@ -32,25 +32,38 @@ export function JoinScreen() {
   };
 
   return (
-    <div className="relative grid min-h-screen overflow-hidden lg:grid-cols-[1.05fr_1fr]">
-      <div className="flex flex-col px-10 py-10 lg:px-16">
-        <Logo size={34} />
-        <div className="my-auto max-w-[520px] py-16">
-          <div className="mb-5 inline-flex rounded-full border border-line bg-surface px-3 py-1 text-[11.5px] font-medium tracking-wider text-ink-muted uppercase">
-            Automation meeting
-          </div>
-          <h1 className="font-display text-[56px] leading-[1.02] font-medium">
+    <div className="min-h-screen bg-paper">
+      <header className="flex h-16 items-center border-b border-line px-8">
+        <Logo />
+      </header>
+
+      <main className="mx-auto grid max-w-[1200px] items-center gap-16 px-8 py-16 lg:grid-cols-[1.05fr_1fr] lg:py-20">
+        <div>
+          <Eyebrow>Automation meeting</Eyebrow>
+          <h1 className="display mt-4 text-[56px] leading-[1.02]">
             Build it. Run it.
             <br />
             <span className="text-crimson">Climb the board.</span>
           </h1>
-          <p className="mt-5 max-w-[440px] text-[16px] leading-relaxed text-ink-muted">
-            Eight real scenarios. Your team builds the workflow, runs it against hidden tests, and moves on when it works. One captain
-            drives; everyone else thinks out loud.
+          <p className="mt-5 max-w-[460px] text-[17px] leading-relaxed text-ink-2">
+            Eight real scenarios. Your team builds a workflow for each one, runs it against hidden tests, and moves on when it works.
           </p>
 
-          <form onSubmit={submit} className="mt-9 max-w-[420px]">
-            <label className="mb-2 block text-[13px] font-medium">{mode === "create" ? "Team name" : "Your team's exact name"}</label>
+          <ul className="mt-6 space-y-2 text-[15px] text-ink-2">
+            {[
+              "One captain uses the laptop; everyone else helps think it through.",
+              "Clear a level to unlock the next one.",
+              "Hints help, but cost points.",
+            ].map((t) => (
+              <li key={t} className="flex gap-2.5">
+                <Check size={18} className="mt-0.5 shrink-0 text-crimson" strokeWidth={2.5} />
+                {t}
+              </li>
+            ))}
+          </ul>
+
+          <form onSubmit={submit} className="mt-10 max-w-[460px]">
+            <label className="mb-2 block text-[14px] font-semibold">{mode === "create" ? "Captain: name your team" : "Your team's exact name"}</label>
             <div className="flex gap-2">
               <input
                 autoFocus
@@ -58,86 +71,77 @@ export function JoinScreen() {
                 onChange={(e) => setName(e.target.value)}
                 maxLength={40}
                 placeholder="e.g. The Zap Pack"
-                className={`${inputCls} py-3 text-[15px]`}
+                className={`${inputCls} min-h-[48px] text-[16px]`}
               />
-              <button
-                disabled={busy || !name.trim()}
-                className="flex shrink-0 items-center gap-2 rounded-lg bg-crimson px-5 text-[15px] font-medium text-white hover:bg-crimson-dark disabled:opacity-50"
-              >
-                {busy ? <LoaderCircle size={17} className="animate-spin" /> : <ArrowRight size={17} />}
-                {mode === "create" ? "Create" : "Rejoin"}
-              </button>
+              <Button size="lg" disabled={busy || !name.trim()} className="shrink-0">
+                {busy && <LoaderCircle size={17} className="animate-spin" />}
+                {mode === "create" ? "Create team" : "Rejoin"}
+                {!busy && <ArrowRight size={17} />}
+              </Button>
             </div>
-            {error && <p className="mt-2 text-[13px] text-fail">{error}</p>}
+            {error && <p className="mt-2 text-[13.5px] text-fail">{error}</p>}
             <button
               type="button"
               onClick={() => {
                 setMode(mode === "create" ? "rejoin" : "create");
                 setError(null);
               }}
-              className="mt-4 text-[13px] text-ink-muted underline-offset-2 hover:text-ink hover:underline"
+              className="mt-4 text-[14px] font-medium text-ink-2 underline-offset-4 hover:underline"
             >
               {mode === "create" ? "Already made a team? Rejoin it" : "Need a new team? Create one"}
             </button>
           </form>
         </div>
-        <p className="text-[12px] text-ink-muted">Gen AI Club · Indiana University</p>
-      </div>
 
-      <div
-        className="relative hidden bg-canvas lg:block"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 80% 0%, rgb(152 27 37 / 0.3), transparent 60%), radial-gradient(circle, #4a3537 1.4px, transparent 1.6px)",
-          backgroundSize: "100% 100%, 22px 22px",
-        }}
-      >
-        <HeroFlow />
-      </div>
+        <HeroCanvas />
+      </main>
     </div>
   );
 }
 
-/** Decorative workflow on the dark canvas. Static SVG, no interaction. */
-function HeroFlow() {
-  const node = (x: number, y: number, label: string, sub: string, color: string, trigger = false) => (
-    <g transform={`translate(${x} ${y})`}>
-      <rect width="200" height="58" rx={trigger ? 29 : 12} fill="#261b1c" stroke="#3d2c2d" />
-      {!trigger && <rect width="3" height="58" rx="1.5" fill={color} />}
-      <rect x="14" y="13" width="32" height="32" rx={trigger ? 16 : 8} fill={color} opacity="0.18" />
-      <circle cx="30" cy="29" r="5" fill={color} />
-      <text x="58" y="27" fill="#ede6e3" fontSize="13" fontFamily="var(--font-dm-sans)">
-        {label}
-      </text>
-      <text x="58" y="44" fill="#a8999a" fontSize="11" fontFamily="var(--font-dm-sans)">
-        {sub}
-      </text>
-    </g>
+/** A small, static picture of a workflow in the editor's style. */
+function HeroCanvas() {
+  const step = (n: number, cat: string, color: string, Icon: typeof FileText, label: string, sub: string) => (
+    <div className="w-[270px] rounded-lg bg-paper ring-1 ring-line">
+      <div className="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
+        <span
+          className="grid size-9 place-items-center rounded-lg"
+          style={{ background: `color-mix(in srgb, ${color} 11%, var(--color-paper))`, color }}
+        >
+          <Icon size={18} />
+        </span>
+        <div>
+          <div className="text-[11px] font-medium text-muted">
+            {n} · {cat}
+          </div>
+          <div className="text-[14px] font-semibold">{label}</div>
+        </div>
+      </div>
+      <div className="border-t border-line px-3.5 py-2 text-[12px] text-muted">{sub}</div>
+    </div>
   );
-  const edge = (d: string, lit = false) => (
-    <path d={d} fill="none" stroke={lit ? "#f07a3d" : "#5a4446"} strokeWidth={lit ? 2.5 : 2} className={lit ? "edge-flowing" : ""} />
+  const link = (count: string) => (
+    <div className="relative ml-[134px] h-10 w-[2px] bg-crimson">
+      <span className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-crimson px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-paper">
+        {count}
+      </span>
+    </div>
   );
   return (
-    <svg className="absolute inset-0 h-full w-full" viewBox="-20 150 780 360" preserveAspectRatio="xMidYMid meet">
-      {edge("M 220 329 C 250 329 240 329 270 329", true)}
-      {edge("M 470 329 C 510 329 480 249 520 249", true)}
-      {edge("M 470 329 C 510 329 480 409 520 409")}
-      {node(20, 300, "New email", "On each new email", "#d9434f", true)}
-      {node(270, 300, "AI Classify", "→ recruiting, other", "#c77dba")}
-      {node(520, 220, "Slack message", "Post in #recruiting", "#6faf8a")}
-      {node(520, 380, "Add sheet row", "Add to Inbox log", "#6faf8a")}
-      <g transform="translate(214 290)">
-        <rect width="62" height="20" rx="10" fill="#3a1f1c" stroke="#f07a3d" strokeOpacity="0.5" />
-        <text x="31" y="14" textAnchor="middle" fill="#ffd2b8" fontSize="10.5" fontFamily="var(--font-jetbrains)">
-          6 items
-        </text>
-      </g>
-      <g transform="translate(468 262)">
-        <rect width="56" height="20" rx="10" fill="#3a1f1c" stroke="#f07a3d" strokeOpacity="0.5" />
-        <text x="28" y="14" textAnchor="middle" fill="#ffd2b8" fontSize="10.5" fontFamily="var(--font-jetbrains)">
-          2 items
-        </text>
-      </g>
-    </svg>
+    <div
+      className="relative hidden h-[500px] items-center justify-center rounded-[32px] bg-cream ring-1 ring-line lg:flex"
+      style={{ backgroundImage: "radial-gradient(circle, var(--color-dot) 1.3px, transparent 1.5px)", backgroundSize: "20px 20px" }}
+    >
+      <div>
+        {step(1, "Trigger", "var(--color-cat-trigger)", FileText, "Form submitted", "On each review")}
+        {link("6 items")}
+        {step(2, "AI", "var(--color-cat-ai)", Tags, "AI Classify", "→ positive, negative, question")}
+        {link("2 items")}
+        {step(3, "Action", "var(--color-cat-action)", Hash, "Slack message", "Post in #customer-care")}
+      </div>
+      <div className="absolute right-8 bottom-8 flex items-center gap-2 rounded-full bg-pass px-4 py-2 text-[13px] font-medium text-paper">
+        <Check size={15} strokeWidth={3} /> 6 of 6 tests passed
+      </div>
+    </div>
   );
 }

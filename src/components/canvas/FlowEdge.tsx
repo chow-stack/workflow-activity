@@ -16,15 +16,14 @@ function FlowEdgeImpl({ id, sourceX, sourceY, targetX, targetY, sourcePosition, 
         path={path}
         className={data?.flowing ? "edge-flowing" : ""}
         style={{
-          stroke: lit ? "var(--color-ember)" : selected ? "#c9a3a6" : "var(--color-edge)",
+          stroke: lit ? "var(--color-crimson)" : selected ? "var(--color-ink)" : "var(--color-edge)",
           strokeWidth: lit ? 2.5 : 2,
-          filter: data?.flowing ? "drop-shadow(0 0 4px rgb(240 122 61 / 0.7))" : undefined,
         }}
       />
       {(data?.count ?? 0) > 0 && (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan animate-pop pointer-events-none absolute rounded-full bg-[#3a1f1c] px-2 py-0.5 font-mono text-[10.5px] text-[#ffd2b8] ring-1 ring-ember/50"
+            className="nodrag nopan animate-pop pointer-events-none absolute rounded-full bg-crimson px-2 py-0.5 text-[11px] font-medium text-paper"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
             {data!.count} {data!.count === 1 ? "item" : "items"}
@@ -36,4 +35,3 @@ function FlowEdgeImpl({ id, sourceX, sourceY, targetX, targetY, sourcePosition, 
 }
 
 export const FlowEdge = memo(FlowEdgeImpl);
-

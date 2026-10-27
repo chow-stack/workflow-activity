@@ -1,6 +1,6 @@
 # Workflow Lab
 
-Gen AI Club automation meeting activity. Teams build n8n-style workflows, run them against hidden tests, and climb a live leaderboard. Full design in [SPEC.md](SPEC.md).
+Gen AI Club automation meeting activity. Teams build Zapier-style workflows, run them against hidden tests, and climb a live leaderboard. Full design in [SPEC.md](SPEC.md).
 
 ## Run locally
 
@@ -13,7 +13,7 @@ npm run dev
 - `/` captain creates or rejoins a team
 - `/play` the canvas (laptop only)
 - `/board` projector leaderboard
-- `/host` passcode-gated controls (start, pause, boss round, end, reset)
+- `/host` host controls (start, pause, +5 min, end, reset). No passcode: anyone with the link can use it
 
 ## Tests
 
@@ -25,7 +25,7 @@ Every level's reference solution must pass all its tests, and every trap solutio
 
 ## Supabase
 
-Schema: `supabase/migrations/0001_init.sql`. Host controls are database functions gated by a bcrypt-hashed passcode in `private.host_secret`, so the app only needs the public publishable key.
+Schema: `supabase/migrations/` (apply in order). Host controls are a database function, so the app only needs the public publishable key.
 
 ## Deploy
 

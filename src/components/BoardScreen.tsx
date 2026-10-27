@@ -1,21 +1,18 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Timer } from "lucide-react";
+import { Timer } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import type { Workflow } from "@/engine/types";
-import { LEVELS, MAX_POINTS, boss as bossLevel } from "@/levels";
+import { LEVELS, MAX_POINTS } from "@/levels";
 import { formatClock, secondsLeft, useLeaderboardData, useNow, useSession } from "@/lib/live";
 import { standings } from "@/lib/scoring";
-import { Canvas } from "./canvas/Canvas";
-import { Logo } from "./TopBar";
+import { Logo } from "./ui";
 
-const PHASE_LABEL = { lobby: "Waiting to start", running: "Live", paused: "Paused", boss: "Boss round", ended: "Final standings" } as const;
+const PHASE_LABEL = { lobby: "Waiting to start", running: "Live", paused: "Paused", ended: "Final standings" } as const;
 
 export function BoardScreen() {
   const { session } = useSession();
-  const { teams, completions, boss } = useLeaderboardData();
+  const { teams, completions } = useLeaderboardData();
   const now = useNow();
-  const [galleryOpen, setGalleryOpen] = useState(false);
   const rows = useMemo(() => standings(teams, completions), [teams, completions]);
   const ticker = useTicker(completions, teams);
   const phase = session?.phase ?? "lobby";
@@ -26,23 +23,21 @@ export function BoardScreen() {
     () => "",
   );
 
-  if (galleryOpen && boss.length) return <Gallery items={boss} teams={teams} onClose={() => setGalleryOpen(false)} />;
-
   return (
-    <div className="flex min-h-screen flex-col px-12 py-8">
+    <div className="flex min-h-screen flex-col bg-paper px-12 py-8">
       <header className="flex items-center gap-6">
-        <Logo size={44} />
+        <Logo />
         <div className="ml-auto flex items-center gap-4">
           <span
-            className={`rounded-full px-4 py-1.5 text-[15px] font-medium ${
-              phase === "running" ? "bg-crimson text-white" : phase === "paused" ? "bg-warn/20 text-warn" : "bg-ink text-cream"
+            className={`rounded-full px-4 py-1.5 text-[16px] font-semibold ${
+              phase === "running" ? "bg-crimson text-paper" : phase === "paused" ? "bg-warn-soft text-warn" : "bg-ink text-paper"
             }`}
           >
             {PHASE_LABEL[phase]}
           </span>
           {left !== null && (
-            <span className="flex items-center gap-2 font-mono text-[44px] leading-none tabular-nums">
-              <Timer size={34} className="text-ink-muted" />
+            <span className="flex items-center gap-2 text-[44px] leading-none font-semibold tabular-nums">
+              <Timer size={34} className="text-muted" />
               {formatClock(left)}
             </span>
           )}
@@ -51,22 +46,23 @@ export function BoardScreen() {
 
       {phase === "lobby" ? (
         <div className="my-auto text-center">
-          <h1 className="font-display text-[64px] leading-tight">Grab a laptop, pick a captain.</h1>
-          <p className="mt-3 text-[22px] text-ink-muted">
-            Go to <span className="font-mono text-crimson">{host}</span> and create your team.
+          <div className="eyebrow">Workflow Lab</div>
+          <h1 className="display mt-3 text-[64px] leading-tight">Grab a laptop. Pick a captain.</h1>
+          <p className="mt-3 text-[24px] text-ink-2">
+            Go to <span className="font-semibold text-crimson">{host}</span> and create your team.
           </p>
           <div className="mx-auto mt-12 flex max-w-5xl flex-wrap justify-center gap-3">
             {teams.map((t) => (
-              <span key={t.id} className="animate-pop rounded-full border border-line bg-surface px-5 py-2.5 text-[20px]">
+              <span key={t.id} className="animate-pop rounded-full bg-cream px-5 py-2.5 text-[20px] font-medium ring-1 ring-line">
                 {t.name}
               </span>
             ))}
-            {teams.length === 0 && <span className="text-[18px] text-ink-muted">No teams yet.</span>}
+            {teams.length === 0 && <span className="text-[18px] text-muted">No teams yet.</span>}
           </div>
         </div>
       ) : (
         <>
-          <div className="mt-8 mb-3 grid grid-cols-[64px_1fr_auto_150px] items-end gap-6 px-6 text-[13px] font-medium tracking-wider text-ink-muted uppercase">
+          <div className="mt-10 mb-3 grid grid-cols-[64px_1fr_auto_150px] items-end gap-6 px-6 text-[13px] font-semibold tracking-[0.06em] text-muted uppercase">
             <span>#</span>
             <span>Team</span>
             <span className="flex gap-3">
@@ -82,42 +78,34 @@ export function BoardScreen() {
             {rows.map((r, i) => (
               <li
                 key={r.team.id}
-                className={`grid grid-cols-[64px_1fr_auto_150px] items-center gap-6 rounded-2xl px-6 py-3.5 transition ${
-                  i < 3 ? "bg-crimson/[0.07] ring-1 ring-crimson/15" : "bg-surface ring-1 ring-line"
+                className={`grid grid-cols-[64px_1fr_auto_150px] items-center gap-6 rounded-lg px-6 py-4 ${
+                  i === 0 && r.points > 0 ? "bg-crimson-soft ring-2 ring-crimson/40" : "bg-paper ring-1 ring-line"
                 }`}
               >
-                <span className={`font-display text-[34px] ${i < 3 ? "text-crimson" : "text-ink-muted"}`}>{i + 1}</span>
-                <span className="truncate text-[26px] font-medium">{r.team.name}</span>
+                <span className={`display text-[34px] ${i < 3 && r.points > 0 ? "text-crimson" : "text-faint"}`}>{i + 1}</span>
+                <span className="truncate text-[26px] font-semibold">{r.team.name}</span>
                 <span className="flex gap-3">
-                  {LEVELS.map((l) => {
-                    const cleared = r.cleared.includes(l.id);
-                    const skipped = r.skipped.includes(l.id);
-                    return (
-                      <span
-                        key={l.id}
-                        className={`size-9 rounded-full ${cleared ? "bg-crimson" : skipped ? "bg-line" : "border-2 border-line"}`}
-                        title={`Level ${l.id}`}
-                      />
-                    );
-                  })}
+                  {LEVELS.map((l) => (
+                    <span
+                      key={l.id}
+                      className={`size-9 rounded-full ${
+                        r.cleared.includes(l.id) ? "bg-crimson" : r.skipped.includes(l.id) ? "bg-sand" : "ring-2 ring-line ring-inset"
+                      }`}
+                    />
+                  ))}
                 </span>
-                <span className="text-right text-[30px] font-medium tabular-nums">{r.points.toLocaleString()}</span>
+                <span className="text-right text-[30px] font-semibold tabular-nums">{r.points.toLocaleString()}</span>
               </li>
             ))}
           </ol>
-          {rows.length === 0 && <p className="mt-10 text-center text-[20px] text-ink-muted">No teams yet.</p>}
+          {rows.length === 0 && <p className="mt-10 text-center text-[20px] text-muted">No teams yet.</p>}
 
-          <footer className="mt-auto flex items-center gap-4 pt-8 text-[17px] text-ink-muted">
+          <footer className="mt-auto flex items-center gap-4 pt-8 text-[17px] text-muted">
             <span>Max {MAX_POINTS.toLocaleString()} pts · hints cost 25%</span>
             {ticker && (
-              <span key={ticker.key} className="animate-pop ml-auto rounded-full bg-ink px-5 py-2 text-cream">
+              <span key={ticker.key} className="animate-rise ml-auto rounded-full bg-ink px-5 py-2 font-medium text-paper">
                 {ticker.text}
               </span>
-            )}
-            {(phase === "ended" || phase === "boss") && boss.length > 0 && (
-              <button onClick={() => setGalleryOpen(true)} className="ml-auto rounded-full bg-crimson px-5 py-2 font-medium text-white">
-                Boss designs ({boss.length}) →
-              </button>
             )}
           </footer>
         </>
@@ -127,7 +115,10 @@ export function BoardScreen() {
 }
 
 /** "Team X just cleared Level 6" for the newest completion. */
-function useTicker(completions: { team_id: string; level: number; skipped: boolean; completed_at: string }[], teams: { id: string; name: string }[]) {
+function useTicker(
+  completions: { team_id: string; level: number; skipped: boolean; completed_at: string }[],
+  teams: { id: string; name: string }[],
+) {
   const seen = useRef<number>(0);
   const [msg, setMsg] = useState<{ key: string; text: string } | null>(null);
   useEffect(() => {
@@ -144,55 +135,4 @@ function useTicker(completions: { team_id: string; level: number; skipped: boole
     return () => window.clearTimeout(id);
   }, [completions, teams]);
   return msg;
-}
-
-function Gallery({
-  items,
-  teams,
-  onClose,
-}: {
-  items: { team_id: string; title: string; problem: string; workflow: unknown }[];
-  teams: { id: string; name: string }[];
-  onClose: () => void;
-}) {
-  const [i, setI] = useState(0);
-  const item = items[Math.min(i, items.length - 1)];
-  const team = teams.find((t) => t.id === item.team_id)?.name ?? "";
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") setI((x) => Math.min(items.length - 1, x + 1));
-      if (e.key === "ArrowLeft") setI((x) => Math.max(0, x - 1));
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [items.length, onClose]);
-
-  return (
-    <div className="flex h-screen flex-col">
-      <header className="flex items-center gap-6 border-b border-line px-10 py-5">
-        <div>
-          <div className="text-[14px] font-medium tracking-wider text-crimson uppercase">
-            {team} · {i + 1} of {items.length}
-          </div>
-          <h1 className="font-display text-[42px] leading-tight">{item.title}</h1>
-          <p className="text-[20px] text-ink-muted">{item.problem}</p>
-        </div>
-        <div className="ml-auto flex gap-2">
-          <button onClick={() => setI(Math.max(0, i - 1))} className="rounded-full p-3 ring-1 ring-line hover:bg-surface" aria-label="Previous">
-            <ChevronLeft size={26} />
-          </button>
-          <button onClick={() => setI(Math.min(items.length - 1, i + 1))} className="rounded-full p-3 ring-1 ring-line hover:bg-surface" aria-label="Next">
-            <ChevronRight size={26} />
-          </button>
-          <button onClick={onClose} className="rounded-full px-5 ring-1 ring-line hover:bg-surface">
-            Leaderboard
-          </button>
-        </div>
-      </header>
-      <div className="min-h-0 flex-1">
-        <Canvas key={item.team_id} workflow={item.workflow as Workflow} readOnly palette={bossLevel.palette} />
-      </div>
-    </div>
-  );
 }

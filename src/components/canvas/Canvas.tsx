@@ -14,7 +14,8 @@ import {
 } from "@xyflow/react";
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { isTrigger } from "@/engine/nodes";
+import { topoOrder } from "@/engine/graph";
+import { NODES, isTrigger } from "@/engine/nodes";
 import type { NodeType, Workflow } from "@/engine/types";
 import type { Anim } from "@/lib/store";
 import { AddNodeMenu } from "./AddNodeMenu";
@@ -30,6 +31,8 @@ export interface CanvasProps {
   readOnly?: boolean;
   selectedId?: string | null;
   issues?: Record<string, string>;
+  /** Show issues as errors (red) instead of to-dos (amber). True after a Run attempt. */
+  strict?: boolean;
   anim?: Anim;
   onAdd?: (type: NodeType, pos: { x: number; y: number }, from?: { source: string; handle: string }) => void;
   onMove?: (id: string, pos: { x: number; y: number }) => void;
@@ -50,6 +53,11 @@ function CanvasInner(p: CanvasProps) {
   const [menu, setMenu] = useState<Pending | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  const steps = useMemo(() => {
+    const order = topoOrder(p.workflow);
+    return Object.fromEntries(order.map((id, i) => [id, i + 1]));
+  }, [p.workflow]);
+
   const nodes = useMemo<CardNode[]>(
     () =>
       p.workflow.nodes.map((n) => ({
@@ -58,9 +66,16 @@ function CanvasInner(p: CanvasProps) {
         position: n.position,
         selected: n.id === p.selectedId,
         draggable: !p.readOnly,
-        data: { node: n, issue: p.issues?.[n.id], run: p.anim?.active || Object.keys(p.anim?.nodes ?? {}).length ? p.anim?.nodes[n.id] : undefined, readOnly: p.readOnly },
+        data: {
+          node: n,
+          step: steps[n.id],
+          issue: p.issues?.[n.id],
+          strict: p.strict,
+          run: p.anim && Object.keys(p.anim.nodes).length ? p.anim.nodes[n.id] : undefined,
+          readOnly: p.readOnly,
+        },
       })),
-    [p.workflow.nodes, p.selectedId, p.issues, p.anim, p.readOnly],
+    [p.workflow.nodes, p.selectedId, p.issues, p.strict, p.anim, p.readOnly, steps],
   );
 
   const edges = useMemo<FlowEdgeT[]>(
@@ -134,9 +149,12 @@ function CanvasInner(p: CanvasProps) {
   );
 
   const openMenu = () => {
+    // New steps attach after the selected step (or the last one), like Zapier's linear editor.
     const sel = p.workflow.nodes.find((n) => n.id === p.selectedId) ?? p.workflow.nodes.at(-1);
     if (sel) {
-      setMenu({ pos: { x: sel.position.x + 300, y: sel.position.y } });
+      const outs = NODES[sel.type].outputs(sel.config);
+      const from = outs.length === 1 ? { source: sel.id, handle: outs[0].id } : undefined;
+      setMenu({ pos: { x: sel.position.x + 330, y: sel.position.y }, from });
       return;
     }
     const r = wrapper.current?.getBoundingClientRect();
@@ -167,21 +185,21 @@ function CanvasInner(p: CanvasProps) {
         minZoom={0.3}
         maxZoom={1.6}
         proOptions={{ hideAttribution: true }}
-        colorMode="dark"
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1.6} color="var(--color-canvas-dot)" />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} color="var(--color-dot)" />
         {!p.readOnly && <Controls showInteractive={false} position="bottom-left" />}
       </ReactFlow>
 
       {!p.readOnly && empty && !menu && (
         <button
           onClick={openMenu}
-          className="group absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 text-node-muted"
+          className="group absolute top-1/2 left-1/2 flex w-[264px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 rounded-lg border-2 border-dashed border-line-strong bg-paper/70 px-6 py-7 text-center transition hover:border-crimson"
         >
-          <span className="grid size-20 place-items-center rounded-2xl border-2 border-dashed border-node-border transition group-hover:border-ember group-hover:text-ember">
-            <Plus size={30} />
+          <span className="grid size-11 place-items-center rounded-full bg-crimson text-paper transition group-hover:scale-105">
+            <Plus size={22} />
           </span>
-          <span className="text-sm">Add the first step</span>
+          <span className="mt-1 text-[15px] font-semibold text-ink">Add a trigger</span>
+          <span className="text-[12.5px] text-muted">The event that starts this workflow</span>
         </button>
       )}
 
@@ -189,9 +207,9 @@ function CanvasInner(p: CanvasProps) {
         <button
           onClick={openMenu}
           title="Add a step"
-          className="absolute top-4 right-4 z-10 grid size-10 place-items-center rounded-lg bg-node text-node-text ring-1 ring-node-border transition hover:bg-node-hover hover:ring-ember/60"
+          className="absolute top-4 right-4 z-10 flex items-center gap-1.5 rounded-full bg-paper py-2 pr-4 pl-3 text-[14px] font-medium text-ink ring-1 ring-ink transition hover:bg-cream"
         >
-          <Plus size={20} />
+          <Plus size={17} /> Add step
         </button>
       )}
 
@@ -203,12 +221,14 @@ function CanvasInner(p: CanvasProps) {
           onPick={(t) => {
             p.onAdd?.(t, menu.pos, menu.from);
             setMenu(null);
+            // Keep the new step in view (the config panel narrows the canvas when it opens).
+            window.setTimeout(() => rf.fitView({ padding: 0.25, maxZoom: 1, duration: 250 }), 80);
           }}
         />
       )}
 
       {toast && (
-        <div className="animate-pop absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-[#3a1f1c] px-4 py-2 text-sm text-[#ffd2b8] ring-1 ring-ember/40">
+        <div className="animate-pop absolute top-16 left-1/2 z-20 -translate-x-1/2 rounded-full bg-ink px-4 py-2 text-[13px] text-paper">
           {toast}
         </div>
       )}
