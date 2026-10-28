@@ -52,6 +52,16 @@ function CanvasInner(p: CanvasProps) {
   const wrapper = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<Pending | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Connection under the pointer (shows its delete button) and the clicked one (Backspace removes it).
+  const [hoverEdge, setHoverEdge] = useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
+  const leaveTimer = useRef<number | undefined>(undefined);
+  const hover = useCallback((id: string | null) => {
+    window.clearTimeout(leaveTimer.current);
+    // Short grace period so the pointer can travel from the line onto its button.
+    if (id) setHoverEdge(id);
+    else leaveTimer.current = window.setTimeout(() => setHoverEdge(null), 160);
+  }, []);
 
   const steps = useMemo(() => {
     const order = topoOrder(p.workflow);
@@ -78,6 +88,7 @@ function CanvasInner(p: CanvasProps) {
     [p.workflow.nodes, p.selectedId, p.issues, p.strict, p.anim, p.readOnly, steps],
   );
 
+  const removeEdge = p.onRemoveEdges;
   const edges = useMemo<FlowEdgeT[]>(
     () =>
       p.workflow.edges.map((e) => ({
@@ -87,9 +98,16 @@ function CanvasInner(p: CanvasProps) {
         sourceHandle: e.sourceHandle ?? "out",
         targetHandle: "in",
         type: "flow",
-        data: { count: p.anim?.edges[e.id], flowing: p.anim?.flowing[e.id] },
+        selected: e.id === selectedEdge,
+        data: {
+          count: p.anim?.edges[e.id],
+          flowing: p.anim?.flowing[e.id],
+          active: !p.readOnly && !p.anim?.active && (e.id === hoverEdge || e.id === selectedEdge),
+          onDelete: removeEdge ? (id: string) => removeEdge([id]) : undefined,
+          onHover: hover,
+        },
       })),
-    [p.workflow.edges, p.anim],
+    [p.workflow.edges, p.anim, p.readOnly, hoverEdge, selectedEdge, removeEdge, hover],
   );
 
   const firstFit = useRef(true);
@@ -176,9 +194,21 @@ function CanvasInner(p: CanvasProps) {
         onConnect={onConnect}
         onConnectEnd={onConnectEnd}
         // Open a step's settings on a real click only; dragging a step (past the threshold) isn't a click.
-        onNodeClick={(_, node) => p.onSelect?.(node.id)}
+        onNodeClick={(_, node) => {
+          setSelectedEdge(null);
+          p.onSelect?.(node.id);
+        }}
         nodeDragThreshold={4}
-        onPaneClick={() => p.onSelect?.(null)}
+        onEdgeClick={(_, edge) => {
+          setSelectedEdge(edge.id);
+          p.onSelect?.(null);
+        }}
+        onEdgeMouseEnter={(_, edge) => hover(edge.id)}
+        onEdgeMouseLeave={() => hover(null)}
+        onPaneClick={() => {
+          setSelectedEdge(null);
+          p.onSelect?.(null);
+        }}
         nodesConnectable={!p.readOnly}
         elementsSelectable={!p.readOnly}
         deleteKeyCode={p.readOnly ? null : ["Backspace", "Delete"]}
