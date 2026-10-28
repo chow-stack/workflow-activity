@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowRight, Check, Timer } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Check, ListOrdered, Timer } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { DEMO, LEVELS, MAX_POINTS } from "@/levels";
 import { formatClock, secondsLeft, useLeaderboardData, useNow, useRoom } from "@/lib/live";
-import { standings } from "@/lib/scoring";
+import { standings, type Standing } from "@/lib/scoring";
 import { KEYS, load } from "@/lib/storage";
 import { normalizeCode } from "@/lib/supabase";
 import { Button, Logo } from "./ui";
@@ -133,7 +133,10 @@ function Board({ code }: { code: string }) {
           <div className="mx-auto mt-10 max-w-3xl">
             <div className="flex items-center gap-4">
               <div className="h-4 flex-1 overflow-hidden rounded-full bg-sand">
-                <div className="h-full bg-pass transition-all" style={{ width: `${teams.length ? (demoDone.size / teams.length) * 100 : 0}%` }} />
+                <div
+                  className="h-full bg-pass transition-all"
+                  style={{ width: `${teams.length ? (demoDone.size / teams.length) * 100 : 0}%` }}
+                />
               </div>
               <span className="text-[26px] font-semibold tabular-nums">
                 {demoDone.size}/{teams.length}
@@ -159,7 +162,9 @@ function Board({ code }: { code: string }) {
         </div>
       )}
 
-      {(phase === "running" || phase === "paused" || phase === "ended") && (
+      {phase === "ended" && <FinalScreen code={code} rows={rows} />}
+
+      {(phase === "running" || phase === "paused") && (
         <>
           <div className="mt-10 mb-3 grid grid-cols-[64px_1fr_auto_150px] items-end gap-6 px-6 text-[13px] font-semibold tracking-[0.06em] text-muted uppercase">
             <span>#</span>
@@ -243,4 +248,107 @@ function useTicker(
     return () => window.clearTimeout(id);
   }, [completions, teams]);
   return msg;
+}
+
+const PODIUM = [
+  { place: 2, height: "h-[150px]", tone: "bg-sand text-ink" },
+  { place: 1, height: "h-[210px]", tone: "bg-crimson text-paper" },
+  { place: 3, height: "h-[110px]", tone: "bg-cream text-ink ring-1 ring-line" },
+];
+
+/** End of session: top-3 podium, then the full standings on demand. */
+function FinalScreen({ code, rows }: { code: string; rows: Standing[] }) {
+  const [full, setFull] = useState(false);
+
+  if (full) {
+    return (
+      <div className="mt-8 flex min-h-0 flex-1 flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="display text-[40px] whitespace-nowrap">Final standings</h1>
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={() => setFull(false)}>
+              <ArrowLeft size={16} /> Podium
+            </Button>
+            <a
+              href={`/solutions?room=${code}`}
+              className="inline-flex items-center gap-2 rounded-full bg-crimson px-5 py-2.5 text-[15px] font-medium text-paper hover:bg-crimson-dark"
+            >
+              <BookOpen size={16} /> Walk through the solutions
+            </a>
+          </div>
+        </div>
+        <div className="mt-5 grid grid-cols-[48px_minmax(180px,1fr)_auto_110px_100px] gap-x-6 border-b border-line px-5 pb-2 text-[13px] font-semibold tracking-[0.06em] text-muted uppercase">
+          <span>#</span>
+          <span>Player</span>
+          <span>Levels</span>
+          <span className="text-right">Completed</span>
+          <span className="text-right">Points</span>
+        </div>
+        <ol className="min-h-0 flex-1 overflow-y-auto">
+          {rows.map((r, i) => (
+            <li
+              key={r.team.id}
+              className="grid grid-cols-[48px_minmax(180px,1fr)_auto_110px_100px] items-center gap-x-6 border-b border-line px-5 py-3 text-[19px]"
+            >
+              <span className={`font-semibold ${i < 3 ? "text-crimson" : "text-muted"}`}>{i + 1}</span>
+              <span className="truncate font-medium">{r.team.name}</span>
+              <span className="flex gap-1.5">
+                {LEVELS.map((l) => (
+                  <span
+                    key={l.id}
+                    title={`Level ${l.id}`}
+                    className={`size-5 rounded-full ${r.cleared.includes(l.id) ? "bg-crimson" : r.skipped.includes(l.id) ? "bg-sand" : "ring-2 ring-line ring-inset"}`}
+                  />
+                ))}
+              </span>
+              <span className="text-right text-ink-2 tabular-nums">
+                {r.cleared.length}/{LEVELS.length}
+              </span>
+              <span className="text-right font-semibold tabular-nums">{r.points.toLocaleString()}</span>
+            </li>
+          ))}
+          {rows.length === 0 && <li className="py-6 text-center text-muted">No players joined.</li>}
+        </ol>
+      </div>
+    );
+  }
+
+  return (
+    <div className="my-auto">
+      <h1 className="display text-center text-[56px]">Top 3</h1>
+      <div className="mx-auto mt-10 flex max-w-4xl items-end justify-center gap-6">
+        {PODIUM.map(({ place, height, tone }) => {
+          const r = rows[place - 1];
+          return (
+            <div key={place} className="flex w-[240px] flex-col items-center">
+              {r ? (
+                <div className="animate-rise mb-4 text-center" style={{ animationDelay: `${(3 - place) * 150}ms` }}>
+                  <div className="truncate text-[28px] font-semibold">{r.team.name}</div>
+                  <div className="text-[18px] text-ink-2 tabular-nums">
+                    {r.points.toLocaleString()} pts · {r.cleared.length}/{LEVELS.length} levels
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4 text-[18px] text-faint">—</div>
+              )}
+              <div className={`grid w-full place-items-center rounded-t-lg ${height} ${tone}`}>
+                <span className="display text-[64px]">{place}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-12 flex justify-center gap-3">
+        <Button size="lg" variant="secondary" onClick={() => setFull(true)}>
+          <ListOrdered size={18} /> Full standings
+        </Button>
+        <a
+          href={`/solutions?room=${code}`}
+          className="inline-flex items-center gap-2 rounded-full bg-crimson px-6 py-3 text-[16px] font-medium text-paper hover:bg-crimson-dark"
+        >
+          <BookOpen size={18} /> Walk through the solutions
+        </a>
+      </div>
+    </div>
+  );
 }

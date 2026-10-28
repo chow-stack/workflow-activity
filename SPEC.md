@@ -47,6 +47,7 @@ Status: v3 · 2026-10-27 (rooms with join codes, guided demo, re-paced levels, c
 | `/host` | Host | Create a room (gets a code + secret host key on that laptop), then run it: Lobby → Demo → Levels → Done |
 | `/board?room=CODE` | Projector | Lobby: giant code + joined names · Demo: progress · Levels: top 10 leaderboard |
 | `/demo` | Host | The warm-up level, local only, for presenting the walkthrough. Nothing is recorded |
+| `/solutions?room=CODE` | Host | After the session ends: each level's solution (auto-laid-out canvas), step-by-step explanation with settings, and the common mistakes the tests caught. Locked until the room is `ended` |
 
 ### 3.1 Room phases
 
@@ -56,7 +57,7 @@ Status: v3 · 2026-10-27 (rooms with join codes, guided demo, re-paced levels, c
 | `demo` | Warm-up level (level 0). After passing: "Level 1 opens when the host starts the clock" | Demo title, task, `done/total` bar, names turn green |
 | `running` | Levels 1–8, countdown, hint button, rank | Leaderboard + countdown |
 | `paused` | Covered | Leaderboard, paused clock |
-| `ended` | Final score + rank | Final standings |
+| `ended` | Final score + rank | Top-3 podium → "Full standings" (rank, levels as dots, completed x/8, points) and "Walk through the solutions" |
 
 ## 4. Player flow
 

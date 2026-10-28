@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, ExternalLink, LoaderCircle, MonitorPlay, Users } from "lucide-react";
+import { BookOpen, Check, Copy, ExternalLink, LoaderCircle, MonitorPlay, Trophy, Users } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { LEVELS } from "@/levels";
 import { formatClock, secondsLeft, useLeaderboardData, useNow, useRoom } from "@/lib/live";
@@ -229,9 +229,28 @@ function HostRoomView({ host, onLeave, onLost }: { host: HostRoom; onLeave: () =
           {phase === "ended" && (
             <>
               <h2 className="display text-[24px]">Session over</h2>
-              <p className="mt-1 text-[14.5px] text-ink-2">Final standings are on the big screen.</p>
+              <p className="mt-1 text-[14.5px] text-ink-2">
+                The big screen shows the top 3, with a button for the full standings. Then walk everyone through the solutions, especially the
+                levels most people didn&apos;t finish.
+              </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Button onClick={onLeave}>Start a new room</Button>
+                <a
+                  href={`/solutions?room=${host.code}`}
+                  target="_blank"
+                  className="flex items-center gap-2 rounded-full bg-crimson px-5 py-2.5 text-[15px] font-medium text-paper hover:bg-crimson-dark"
+                >
+                  <BookOpen size={16} /> Open the solutions
+                </a>
+                <a
+                  href={`/board?room=${host.code}`}
+                  target="_blank"
+                  className="flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-medium ring-1 ring-ink hover:bg-cream"
+                >
+                  <Trophy size={16} /> Podium &amp; standings
+                </a>
+                <Button variant="ghost" onClick={onLeave}>
+                  Start a new room
+                </Button>
               </div>
             </>
           )}

@@ -14,6 +14,7 @@ npm run dev
 - `/play` the warm-up demo, then the 8 levels (laptop only)
 - `/board?room=CODE` the big screen: join code, demo progress, leaderboard
 - `/demo` the warm-up level for the host to present (nothing is recorded)
+- `/solutions?room=CODE` after the session ends: every level's solution, explained step by step
 - `/host` create a room and run it: Lobby → Demo → Levels → Done. Only the laptop that created the room can control it
 
 ## Tests
