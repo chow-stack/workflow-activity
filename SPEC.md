@@ -74,7 +74,7 @@ Status: v3 · 2026-10-27 (rooms with join codes, guided demo, re-paced levels, c
 - `completions(team_id, room_code, level 0–8, points, hints_used, skipped)`: level 0 = demo (no points). Inserts allowed for level 0 during `demo`/`running`, levels 1–8 only during `running`.
 - `create_room()` → `{ code, host_key }`. `host_room(code, host_key, action, minutes)`: `demo`, `start`, `pause`, `resume`, `add_time`, `end`, `lobby`, `reset`. Wrong key → error.
 - Realtime on `rooms`, `teams`, `completions`, filtered by room code.
-- Migrations: `0003` adds rooms (additive, old app keeps working). `0004` drops the old singleton `session`; apply it only after the rooms app is deployed.
+- Migrations: `0001`–`0004` are all applied (2026-10-27). `0003` added rooms; `0004` dropped the old singleton `session` and made `room_code` required.
 
 **Env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (public by design, must be set before the Vercel build).
 
