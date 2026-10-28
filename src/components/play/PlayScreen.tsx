@@ -3,24 +3,28 @@
 import { Hourglass, LogOut, Pause, Trophy, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { LEVELS, levelById } from "@/levels";
-import { formatClock, secondsLeft, useLeaderboardData, useNow, useSession } from "@/lib/live";
+import { DEMO, LEVELS, levelById } from "@/levels";
+import { formatClock, secondsLeft, useLeaderboardData, useNow, useRoom } from "@/lib/live";
 import { standings } from "@/lib/scoring";
 import { KEYS, load, remove } from "@/lib/storage";
 import { usePlay, type Team } from "@/lib/store";
 import { fetchDone, syncDone } from "@/lib/teams";
 import { ScreenGuard } from "../ScreenGuard";
 import { TopBar, unlocked } from "../TopBar";
+import { HintButton } from "./HintButton";
 import { Workspace } from "./Workspace";
+
+const firstOpen = (done: Record<number, unknown>) => LEVELS.find((l) => !done[l.id])?.id ?? LEVELS.length;
 
 export function PlayScreen() {
   const router = useRouter();
   const s = usePlay();
-  const { session, offline } = useSession();
+  const [team, setTeam] = useState<Team | null>(null);
+  const { room, offline, missing } = useRoom(team?.room ?? null);
   const now = useNow();
   const [ready, setReady] = useState(false);
-  const board = useLeaderboardData();
-  const myId = s.team?.id;
+  const board = useLeaderboardData(team?.room ?? null);
+  const myId = team?.id;
   const rank = useMemo(() => {
     const rows = standings(board.teams, board.completions);
     const i = rows.findIndex((r) => r.team.id === myId);
@@ -28,37 +32,50 @@ export function PlayScreen() {
   }, [board, myId]);
 
   useEffect(() => {
-    const team = load<Team | null>(KEYS.team, null);
-    if (!team) {
+    const saved = load<Team | null>(KEYS.team, null);
+    if (!saved?.room) {
       router.replace("/");
       return;
     }
-    fetchDone(team.id).then((done) => {
-      usePlay.getState().init(team, done ?? undefined);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTeam(saved);
+    fetchDone(saved.id).then((done) => {
+      usePlay.getState().init(saved, done ?? undefined);
       setReady(true);
-      syncDone(team.id, usePlay.getState().progress);
+      syncDone(saved, usePlay.getState().progress);
     });
   }, [router]);
 
-  // When play resumes (e.g. after a wifi drop or a pause), push any local completions.
-  useEffect(() => {
-    const st = usePlay.getState();
-    if (ready && st.team && session?.phase === "running") syncDone(st.team.id, st.progress);
-  }, [ready, session?.phase]);
-
-  if (!ready || !s.team || (!session && !offline)) {
-    return <Centered>Loading…</Centered>;
-  }
-
-  const phase = offline ? "running" : session!.phase;
-  const left = secondsLeft(session, now);
-  const clock = phase === "running" || phase === "paused" ? formatClock(left) : null;
   const leave = () => {
     remove(KEYS.team);
     router.replace("/");
   };
-  const level = levelById(Math.min(s.progress.currentLevel, LEVELS.length))!;
+
+  // The room was deleted or reset: go back to the join screen.
+  useEffect(() => {
+    if (missing) leave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missing]);
+
+  const phase = offline ? "running" : (room?.phase ?? null);
+
+  // Demo phase shows the warm-up; once the clock starts, jump to the first open level.
+  useEffect(() => {
+    if (!ready) return;
+    const st = usePlay.getState();
+    if (phase === "demo" && st.progress.currentLevel !== 0) st.setLevel(0);
+    if ((phase === "running" || phase === "paused") && st.progress.currentLevel === 0) st.setLevel(firstOpen(st.progress.done));
+    if (phase === "running" && st.team) syncDone(st.team, st.progress);
+  }, [ready, phase]);
+
+  if (!ready || !s.team || !phase) return <Centered>Loading…</Centered>;
+
+  const left = secondsLeft(room, now);
+  const clock = phase === "running" || phase === "paused" ? formatClock(left) : null;
+  const inDemo = phase === "demo";
+  const level = inDemo ? DEMO : levelById(Math.max(1, Math.min(s.progress.currentLevel, LEVELS.length)))!;
   const total = Object.values(s.progress.done).reduce((a, d) => a + d.points, 0);
+  const working = inDemo || phase === "running" || phase === "paused";
 
   return (
     <ScreenGuard>
@@ -69,10 +86,19 @@ export function PlayScreen() {
           clock={clock}
           secondsLeft={left}
           paused={phase === "paused"}
-          rank={offline || phase === "lobby" ? null : rank}
+          showPoints={!inDemo && phase !== "lobby"}
+          rank={offline || !working || inDemo ? null : rank}
           onPick={phase === "running" || phase === "paused" ? (id) => unlocked(s.progress, id) && s.setLevel(id) : undefined}
+          center={
+            inDemo ? (
+              <span className="rounded-full bg-crimson-soft px-4 py-1.5 text-[14px] font-semibold text-crimson">
+                Warm-up · follow along on the big screen
+              </span>
+            ) : undefined
+          }
+          hint={working ? <HintButton level={level} used={s.progress.hints[level.id] ?? 0} onReveal={s.takeHint} /> : undefined}
           right={
-            <button onClick={leave} title="Switch player" className="rounded-full p-1.5 text-muted hover:bg-sand hover:text-ink">
+            <button onClick={leave} title="Leave this room" className="rounded-full p-1.5 text-muted hover:bg-sand hover:text-ink">
               <LogOut size={15} />
             </button>
           }
@@ -85,12 +111,17 @@ export function PlayScreen() {
 
         {phase === "lobby" && (
           <Centered icon={<Hourglass size={26} />} title={`You're in, ${s.team.name}.`}>
-            Waiting for the host to start. Keep this screen open; Level 1 appears here when the clock starts.
+            Look at the big screen. We&apos;ll start with a quick warm-up together.
           </Centered>
         )}
-        {(phase === "running" || phase === "paused") && (
+        {working && (
           <div className="relative flex min-h-0 flex-1">
-            <Workspace key={level.id} level={level} online={!offline} />
+            <Workspace
+              key={level.id}
+              level={level}
+              online={!offline}
+              doneNote="Nice work. Level 1 opens here when the host starts the clock."
+            />
             {phase === "paused" && (
               <div className="absolute inset-0 z-50 grid place-items-center bg-paper/85 backdrop-blur-sm">
                 <Centered icon={<Pause size={26} />} title="Paused">
@@ -102,7 +133,8 @@ export function PlayScreen() {
         )}
         {phase === "ended" && (
           <Centered icon={<Trophy size={26} />} title="That's time!">
-            You finished with {total.toLocaleString()} points. Check the big screen for the final standings.
+            You finished with {total.toLocaleString()} points{rank ? `, #${rank.place} of ${rank.of}` : ""}. Check the big screen for the final
+            standings.
           </Centered>
         )}
       </div>

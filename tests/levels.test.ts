@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { gradeLevel } from "@/engine/grade";
 import { validate } from "@/engine/validate";
-import { LEVELS } from "@/levels";
+import { DEMO, LEVELS } from "@/levels";
 
-describe.each(LEVELS.map((l) => [l.id, l.title, l] as const))("Level %i · %s", (_id, _title, level) => {
+describe.each([DEMO, ...LEVELS].map((l) => [l.id, l.title, l] as const))("Level %i · %s", (_id, _title, level) => {
   it("reference solution is valid and passes every test", () => {
     const ref = level.reference!;
     expect(validate(ref, level)).toEqual([]);

@@ -26,6 +26,7 @@ export function remove(key: string): void {
 }
 
 export const KEYS = {
-  team: "wl.team",
+  team: "wl.player", // { id, name, room }
   progress: (teamId: string) => `wl.progress.${teamId}`,
+  host: "wl.host", // { code, hostKey } for the room this device hosts
 };

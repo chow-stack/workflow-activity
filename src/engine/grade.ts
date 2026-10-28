@@ -14,12 +14,23 @@ import type {
   World,
 } from "./types";
 
+/** One line in the results panel: something that should happen, or something the workflow did. */
+export interface CheckLine {
+  kind: "slack" | "email" | "row";
+  text: string;
+  ok: boolean; // expected: it happened · actual: it was supposed to happen
+}
+
 export interface TestResult {
   id: string;
   label: string;
   hidden: boolean;
   passed: boolean;
-  messages: string[];
+  messages: string[]; // plain-sentence summary (also used by tests)
+  expected: CheckLine[]; // what should happen, each marked done or missing
+  actual: CheckLine[]; // what the workflow did, each marked right or unexpected
+  problem?: string; // run-level failure, e.g. the trigger never fired
+  hint?: string; // the level's tip for this test
   world: World;
   trace: Trace;
 }
@@ -92,6 +103,8 @@ function matchAll<E, A>(exp: E[], act: A[], fn: (e: E, a: A) => boolean) {
     if (tryAssign(ei, new Array(act.length).fill(false))) matched.add(ei);
   });
   return {
+    matched,
+    owner,
     missing: exp.filter((_, ei) => !matched.has(ei)),
     extra: act.filter((_, ai) => owner[ai] === -1),
   };
@@ -108,14 +121,14 @@ const describeSlackExpect = (e: SlackExpect) =>
   (e.includes?.length ? ` mentioning ${e.includes.map(quote).join(", ")}` : "") +
   (e.includesNumber?.length ? ` with ${e.includesNumber.join(" and ")}` : "") +
   (e.at ? ` sent ${e.at}` : "");
-const describeSlack = (a: SlackMsg) => `Slack ${a.channel}${a.at ? ` (${a.at})` : ""}: ${quote(a.text)}`;
+const describeSlack = (a: SlackMsg) => `Slack message in ${a.channel}${a.at ? ` (${a.at})` : ""}: ${quote(a.text || "(empty)")}`;
 
 const describeEmailExpect = (e: EmailExpect) =>
   `an email to ${e.to}` +
   (e.bodyIncludes?.length ? ` mentioning ${e.bodyIncludes.map(quote).join(", ")}` : "") +
   (e.includesNumber?.length ? ` with ${e.includesNumber.join(" and ")}` : "") +
   (e.bodyExcludes?.length ? ` without ${e.bodyExcludes.map(quote).join(", ")}` : "");
-const describeEmail = (a: Email) => `Email to ${a.to || "(nobody)"}: ${quote(a.body)}`;
+const describeEmail = (a: Email) => `Email to ${a.to || "(nobody)"}: ${quote(a.body || a.subject || "(empty)")}`;
 
 const describeRowExpect = (e: RowExpect) =>
   `a row in ${e.sheet} with ${Object.entries(e.match)
@@ -126,53 +139,79 @@ const describeRow = (a: AppendedRow) =>
     .map(([k, v]) => `${k} = ${v === "" ? "(blank)" : v}`)
     .join(", ")}`;
 
+interface Compared {
+  messages: string[];
+  expected: CheckLine[];
+  actual: CheckLine[];
+}
+
 function compare<E, A>(
-  kind: string,
+  kind: CheckLine["kind"],
+  noun: string,
   exp: E[],
   act: A[],
   fn: (e: E, a: A) => boolean,
   descE: (e: E) => string,
   descA: (a: A) => string,
-): string[] {
-  const msgs: string[] = [];
-  const { missing, extra } = matchAll(exp, act, fn);
-  if (missing.length === 0 && extra.length === 0) return msgs;
-  if (exp.length !== act.length) msgs.push(`Your workflow made ${plural(act.length, kind)}, but it should make ${exp.length}.`);
-  missing.slice(0, 3).forEach((e) => msgs.push(`Should have made ${descE(e)}.`));
-  if (missing.length > 3) msgs.push(`…and ${missing.length - 3} more that are missing.`);
-  extra.slice(0, 3).forEach((a) => msgs.push(`Shouldn't have made: ${descA(a)}`));
-  if (extra.length > 3) msgs.push(`…and ${extra.length - 3} more that shouldn't be there.`);
-  return msgs;
+): Compared {
+  const { matched, owner, missing, extra } = matchAll(exp, act, fn);
+  const expected = exp.map((e, i) => ({ kind, text: cap(descE(e)), ok: matched.has(i) }));
+  const actual = act.map((a, i) => ({ kind, text: descA(a), ok: owner[i] !== -1 }));
+  const messages: string[] = [];
+  if (missing.length || extra.length) {
+    if (exp.length !== act.length) messages.push(`Your workflow made ${plural(act.length, noun)}, but it should make ${exp.length}.`);
+    missing.slice(0, 3).forEach((e) => messages.push(`Should have made ${descE(e)}.`));
+    if (missing.length > 3) messages.push(`…and ${missing.length - 3} more that are missing.`);
+    extra.slice(0, 3).forEach((a) => messages.push(`Shouldn't have made: ${descA(a)}`));
+    if (extra.length > 3) messages.push(`…and ${extra.length - 3} more that shouldn't be there.`);
+  }
+  return { messages, expected, actual };
 }
 
-export function checkWorld(test: TestCase, world: World): string[] {
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export function checkWorld(test: TestCase, world: World): Compared {
   const x = test.expect;
-  return [
-    ...compare("Slack message", x.slack ?? [], world.slack, slackMatches, describeSlackExpect, describeSlack),
-    ...compare("email", x.emails ?? [], world.emails, emailMatches, describeEmailExpect, describeEmail),
-    ...compare("sheet row", x.rows ?? [], world.rows, rowMatches, describeRowExpect, describeRow),
+  const parts = [
+    compare("slack", "Slack message", x.slack ?? [], world.slack, slackMatches, describeSlackExpect, describeSlack),
+    compare("email", "email", x.emails ?? [], world.emails, emailMatches, describeEmailExpect, describeEmail),
+    compare("row", "sheet row", x.rows ?? [], world.rows, rowMatches, describeRowExpect, describeRow),
   ];
+  return {
+    messages: parts.flatMap((p) => p.messages),
+    expected: parts.flatMap((p) => p.expected),
+    actual: parts.flatMap((p) => p.actual),
+  };
 }
 
 export function gradeTest(wf: Workflow, level: Level, test: TestCase): TestResult {
   const { world, trace, error } = runTest(wf, level, test);
-  const messages: string[] = [];
-  if (error) messages.push(error);
-  const expectsSomething =
-    (test.expect.slack?.length ?? 0) + (test.expect.emails?.length ?? 0) + (test.expect.rows?.length ?? 0) > 0;
+  const checked = checkWorld(test, world);
+  let problem = error;
+  const expectsSomething = checked.expected.length > 0;
   if (!error && trace.runs === 0 && expectsSomething) {
     const trigger = wf.nodes.find((n) => n.type.startsWith("trigger."));
-    messages.push(
+    problem =
       trigger?.type === `trigger.${level.trigger}` && level.trigger === "schedule"
         ? "Your schedule never fired during this test. Check how often and when it runs."
-        : "Your trigger never fired, so nothing happened. Is it the right kind of trigger?",
-    );
-  } else if (!error) {
-    messages.push(...checkWorld(test, world));
+        : "Your trigger never fired, so nothing happened. Is it the right kind of trigger?";
   }
+  const messages = problem ? [problem] : checked.messages;
   const passed = messages.length === 0;
   if (!passed && test.failHint) messages.push(test.failHint);
-  return { id: test.id, label: test.label, hidden: test.hidden, passed, messages, world, trace };
+  return {
+    id: test.id,
+    label: test.label,
+    hidden: test.hidden,
+    passed,
+    messages,
+    expected: checked.expected,
+    actual: checked.actual,
+    problem,
+    hint: passed ? undefined : test.failHint,
+    world,
+    trace,
+  };
 }
 
 export function gradeLevel(wf: Workflow, level: Level): GradeResult {

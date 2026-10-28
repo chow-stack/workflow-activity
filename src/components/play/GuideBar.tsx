@@ -11,13 +11,15 @@ interface Props {
   cleared: boolean;
   /** The latest run failed and the workflow hasn't changed since. */
   failed: boolean;
+  /** What to say once the level is cleared. */
+  clearedText?: string;
   onFocus: (nodeId: string) => void;
 }
 
 const STEPS = ["Add a trigger", "Add & set up steps", "Run tests"];
 
 /** Always tells the player the single next thing to do. */
-export function GuideBar({ workflow, issues, cleared, failed, onFocus }: Props) {
+export function GuideBar({ workflow, issues, cleared, failed, clearedText, onFocus }: Props) {
   const hasTrigger = workflow.nodes.some((n) => isTrigger(n.type));
   const nodeIssue = issues.find((i) => i.nodeId);
   const hasAction = workflow.nodes.some((n) => NODES[n.type].category === "action");
@@ -26,7 +28,7 @@ export function GuideBar({ workflow, issues, cleared, failed, onFocus }: Props) 
 
   if (cleared) {
     stage = 3;
-    text = "Level cleared. Head to the next one from the results panel.";
+    text = clearedText ?? "Level cleared. Head to the next one from the results panel.";
   } else if (!hasTrigger) {
     text = "Start with a trigger: what event kicks this workflow off?";
   } else if (workflow.nodes.length === 1) {

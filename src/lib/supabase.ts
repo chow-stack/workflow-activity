@@ -15,9 +15,11 @@ export function supabase(): SupabaseClient {
   return client;
 }
 
-export type Phase = "lobby" | "running" | "paused" | "ended";
+export type Phase = "lobby" | "demo" | "running" | "paused" | "ended";
 
-export interface SessionRow {
+/** A room's live state. Players join a room with its code; the host controls it with a secret key. */
+export interface RoomRow {
+  code: string;
   phase: Phase;
   ends_at: string | null;
   paused_remaining_s: number | null;
@@ -26,15 +28,18 @@ export interface SessionRow {
 export interface TeamRow {
   id: string;
   name: string;
+  room_code: string | null;
   created_at: string;
 }
 
 export interface CompletionRow {
   team_id: string;
-  level: number;
+  room_code: string | null;
+  level: number; // 0 = demo
   points: number;
   hints_used: number;
   skipped: boolean;
   completed_at: string;
 }
 
+export const normalizeCode = (raw: string) => raw.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);

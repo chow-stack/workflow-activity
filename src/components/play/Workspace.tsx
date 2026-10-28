@@ -22,7 +22,7 @@ import { LevelIntro } from "./LevelIntro";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function Workspace({ level, online }: { level: Level; online: boolean }) {
+export function Workspace({ level, online, doneNote }: { level: Level; online: boolean; doneNote?: string }) {
   const s = usePlay();
   const wf = s.workflow();
   const [attempted, setAttempted] = useState(false);
@@ -91,14 +91,14 @@ export function Workspace({ level, online }: { level: Level; online: boolean }) 
     if (result.passed && !done && s.team) {
       const pts = pointsFor(level.points, hints);
       s.markDone(level.id, pts, false);
-      if (online) recordCompletion(s.team.id, level.id, pts, hints, false);
+      if (online) recordCompletion(s.team, level.id, pts, hints, false);
     }
   };
 
   const skip = () => {
     if (!s.team) return;
     s.markDone(level.id, 0, true);
-    if (online) recordCompletion(s.team.id, level.id, 0, hints, true);
+    if (online) recordCompletion(s.team, level.id, 0, hints, true);
     if (level.id < LEVELS.length) s.setLevel(level.id + 1);
   };
 
@@ -108,7 +108,7 @@ export function Workspace({ level, online }: { level: Level; online: boolean }) 
 
   return (
     <div className="relative flex min-h-0 flex-1">
-      <BriefPanel level={level} hintsUsed={hints} done={done} onHint={s.takeHint} onSkip={skip} />
+      <BriefPanel level={level} hintsUsed={hints} done={done} onSkip={level.id > 0 ? skip : undefined} />
 
       <main className="flex min-w-0 flex-1 flex-col">
         <div className="relative min-h-0 flex-1">
@@ -135,6 +135,7 @@ export function Workspace({ level, online }: { level: Level; online: boolean }) 
                     issues={issues}
                     cleared={Boolean(done && !done.skipped && s.grade?.passed)}
                     failed={Boolean(s.grade && s.grade.tests.length && !s.grade.passed && !s.gradeStale)}
+                    clearedText={level.id === 0 ? doneNote : undefined}
                     onFocus={s.select}
                   />
                 </div>
@@ -168,7 +169,8 @@ export function Workspace({ level, online }: { level: Level; online: boolean }) 
             grade={s.grade!}
             stale={s.gradeStale}
             earned={s.grade!.passed ? (done?.points ?? null) : null}
-            hasNext={level.id < LEVELS.length}
+            hasNext={level.id > 0 && level.id < LEVELS.length}
+            doneNote={level.id === 0 ? doneNote : undefined}
             onNext={() => s.setLevel(level.id + 1)}
             onClose={() => s.setDrawer(false)}
           />

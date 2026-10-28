@@ -18,16 +18,22 @@ interface Props {
   paused?: boolean;
   rank?: { place: number; of: number } | null;
   onPick?: (id: number) => void;
+  /** Shown instead of the level stepper, e.g. during the demo. */
+  center?: ReactNode;
+  hint?: ReactNode;
+  showPoints?: boolean;
   right?: ReactNode;
 }
 
-export function TopBar({ teamName, progress, clock, secondsLeft, paused, rank, onPick, right }: Props) {
+export function TopBar({ teamName, progress, clock, secondsLeft, paused, rank, onPick, center, hint, showPoints = true, right }: Props) {
   const total = Object.values(progress.done).reduce((s, d) => s + d.points, 0);
   return (
     <header className="flex h-16 shrink-0 items-center gap-5 border-b border-line bg-paper px-5">
       <Logo compact />
 
-      {onPick ? (
+      {center ? (
+        <div className="mx-auto">{center}</div>
+      ) : onPick ? (
         <nav className="mx-auto flex items-center" aria-label="Levels">
           {LEVELS.map((l, i) => {
             const d = progress.done[l.id];
@@ -62,6 +68,7 @@ export function TopBar({ teamName, progress, clock, secondsLeft, paused, rank, o
         <div className="mx-auto" />
       )}
 
+      {hint}
       {clock !== null && (
         <div
           title="Time left"
@@ -80,14 +87,16 @@ export function TopBar({ teamName, progress, clock, secondsLeft, paused, rank, o
           {paused && <span className="text-[12px] font-medium">paused</span>}
         </div>
       )}
-      <div className="flex items-center overflow-hidden rounded-full bg-ink text-[14px] font-semibold text-paper tabular-nums">
-        <span className="px-3.5 py-1.5">{total.toLocaleString()} pts</span>
-        {rank && (
-          <span title="Your place on the leaderboard" className="border-l border-paper/20 px-3 py-1.5 font-medium text-paper/80">
-            #{rank.place} of {rank.of}
-          </span>
-        )}
-      </div>
+      {showPoints && (
+        <div className="flex items-center overflow-hidden rounded-full bg-ink text-[14px] font-semibold text-paper tabular-nums">
+          <span className="px-3.5 py-1.5">{total.toLocaleString()} pts</span>
+          {rank && (
+            <span title="Your place on the leaderboard" className="border-l border-paper/20 px-3 py-1.5 font-medium text-paper/80">
+              #{rank.place} of {rank.of}
+            </span>
+          )}
+        </div>
+      )}
       <div className="flex items-center gap-1 border-l border-line pl-4">
         <span className="max-w-[160px] truncate text-[14px] font-medium" title={teamName}>
           {teamName}

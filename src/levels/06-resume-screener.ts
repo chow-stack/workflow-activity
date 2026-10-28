@@ -4,39 +4,16 @@ import type { Level, Scalar, TestCase } from "@/engine/types";
 const reference = wf(
   [
     ["t", "trigger.form"],
-    [
-      "x",
-      "ai.extract",
-      {
-        field: "resume_text",
-        fields: [
-          { name: "gpa", type: "number" },
-          { name: "major", type: "text" },
-          { name: "skills", type: "list" },
-        ],
-      },
-    ],
-    ["row", "action.sheetRow", { sheet: "Applicants", values: { Name: "{{name}}", Email: "{{email}}", GPA: "{{gpa}}", Major: "{{major}}" } }],
-    [
-      "f",
-      "logic.filter",
-      {
-        match: "all",
-        conditions: [
-          { field: "gpa", op: "gte", value: "3.3" },
-          { field: "skills", op: "contains", value: "Excel" },
-        ],
-      },
-    ],
+    ["x", "ai.extract", { field: "resume_text", fields: [{ name: "gpa", type: "number" }] }],
+    ["f", "logic.filter", { match: "all", conditions: [{ field: "gpa", op: "gte", value: "3.3" }] }],
     [
       "invite",
       "action.email",
-      { to: "{{email}}", subject: "Interview invitation", body: "Hi {{name}}, we'd love to interview you for the analyst role. Pick a time that works for you." },
+      { to: "{{email}}", subject: "Interview invitation", body: "Hi {{name}}, we'd love to interview you for the analyst role." },
     ],
   ],
   [
     ["t", "x"],
-    ["x", "row"],
     ["x", "f"],
     ["f", "invite", "kept"],
   ],
@@ -49,38 +26,30 @@ interface Applicant {
   name: string;
   email: string;
   resume: string;
-  gpa: Scalar;
-  gpaValue: number;
-  major: string;
-  skills: string[];
+  gpa: Scalar; // what the AI "reads" from the resume
   invite: boolean;
 }
 
 const APPLICANTS: Applicant[] = [
   {
-    id: "t1", label: "Strong finance applicant", hidden: false, name: "Ava Thompson", email: "athompson@iu.edu",
-    resume: "Ava Thompson. Kelley School of Business, B.S. Finance, GPA 3.7. Skills: Excel, PowerPoint, financial modeling. Interned at a regional bank.",
-    gpa: 3.7, gpaValue: 3.7, major: "Finance", skills: ["Excel", "PowerPoint", "Financial modeling"], invite: true,
+    id: "t1", label: "GPA 3.7", hidden: false, name: "Ava Thompson", email: "athompson@iu.edu",
+    resume: "Ava Thompson. Kelley School of Business, B.S. Finance, GPA 3.7. Skills: Excel, PowerPoint. Interned at a regional bank.",
+    gpa: 3.7, invite: true,
   },
   {
-    id: "t2", label: "Knows Excel, GPA below the bar", hidden: false, name: "Ethan Brooks", email: "ebrooks@iu.edu",
+    id: "t2", label: "GPA 3.2", hidden: false, name: "Ethan Brooks", email: "ebrooks@iu.edu",
     resume: "Ethan Brooks. Accounting major, 3.2 GPA. Comfortable with Excel and QuickBooks. Treasurer of the investment club.",
-    gpa: 3.2, gpaValue: 3.2, major: "Accounting", skills: ["Excel", "QuickBooks"], invite: false,
+    gpa: 3.2, invite: false,
   },
   {
-    id: "t3", label: "High GPA, no Excel", hidden: false, name: "Lily Nguyen", email: "lnguyen@iu.edu",
-    resume: "Lily Nguyen | Informatics | GPA 3.8 | Python, SQL, Tableau | Built a course-planning app.",
-    gpa: 3.8, gpaValue: 3.8, major: "Informatics", skills: ["Python", "SQL", "Tableau"], invite: false,
+    id: "t3", label: "GPA written a different way", hidden: true, name: "Noah Patel", email: "npatel@iu.edu",
+    resume: "Noah Patel. Business Analytics, GPA: 3.45/4.0. Advanced Excel modeling, R, and Power BI.",
+    gpa: "3.45/4.0", invite: true,
   },
   {
-    id: "t4", label: "GPA written a different way", hidden: true, name: "Noah Patel", email: "npatel@iu.edu",
-    resume: "Noah Patel. Business Analytics, GPA: 3.45/4.0. Advanced Excel modeling, R, and Power BI. Case competition finalist.",
-    gpa: "3.45/4.0", gpaValue: 3.45, major: "Business Analytics", skills: ["Advanced Excel modeling", "R", "Power BI"], invite: true,
-  },
-  {
-    id: "t5", label: "Right on the line", hidden: true, name: "Grace Miller", email: "gmiller@iu.edu",
+    id: "t4", label: "Right on the line", hidden: true, name: "Grace Miller", email: "gmiller@iu.edu",
     resume: "Grace Miller, Finance. GPA 3.3. Tools: Excel, Bloomberg Terminal. Pitched for the student-managed fund.",
-    gpa: 3.3, gpaValue: 3.3, major: "Finance", skills: ["Excel", "Bloomberg Terminal"], invite: true,
+    gpa: 3.3, invite: true,
   },
 ];
 
@@ -89,18 +58,15 @@ const tests: TestCase[] = APPLICANTS.map((a) => ({
   label: a.label,
   hidden: a.hidden,
   input: { events: [{ name: a.name, email: a.email, resume_text: a.resume }] },
-  expect: {
-    rows: [{ sheet: "Applicants", match: { Name: a.name, Email: a.email, GPA: a.gpaValue, Major: a.major } }],
-    emails: a.invite ? [{ to: a.email, bodyIncludes: [a.name.split(" ")[0]] }] : [],
-  },
+  expect: { emails: a.invite ? [{ to: a.email, bodyIncludes: [a.name.split(" ")[0]] }] : [] },
   failHint:
-    a.id === "t4"
-      ? "This GPA is written “3.45/4.0”. Is the AI giving you a number, or text?"
-      : a.id === "t5"
-        ? "A 3.3 GPA counts. Check “greater than” vs “greater than or equal”."
+    a.id === "t3"
+      ? "This GPA is written “3.45/4.0”. Did you set the extracted gpa's type to number?"
+      : a.id === "t4"
+        ? "A 3.3 GPA counts. Check “is greater than” vs “is at least”."
         : a.invite
           ? undefined
-          : "Every applicant gets logged, but only GPA ≥ 3.3 AND Excel gets an invite.",
+          : "Only GPAs of 3.3 or higher get an invite.",
 }));
 
 export const level: Level = {
@@ -109,59 +75,38 @@ export const level: Level = {
   title: "Resume Screener",
   tier: "hard",
   points: 300,
-  skill: "AI: extract",
-  scenario: "You're screening analyst applications. Every resume is written differently, so the facts you need are buried in the text.",
-  task: "Log every applicant, and invite the strong ones to interview.",
-  goals: ["Every applicant → row in Applicants (Name, Email, GPA, Major)", "GPA 3.3 or higher AND lists Excel → interview invite email"],
+  skill: "AI Extract",
+  skillHow: "AI Extract pulls one fact out of messy text and saves it as a new field. Set its type to number if you want to compare it.",
+  task: "Read each resume, find the GPA, and email an interview invite to everyone with a GPA of 3.3 or higher.",
+  goals: ["Extract the GPA from the resume as a number", "GPA 3.3 or higher → interview invite to the applicant", "Lower GPAs get nothing"],
   trigger: "form",
-  palette: ["trigger.form", "ai.extract", "ai.classify", "logic.filter", "logic.ifElse", "action.sheetRow", "action.email"],
+  palette: ["trigger.form", "ai.extract", "ai.classify", "logic.filter", "logic.ifElse", "action.email", "action.sheetRow"],
   form: { title: "Analyst application", fields: ["name", "email", "resume_text"] },
   channels: ["#general"],
-  sheets: { Applicants: { columns: ["Name", "Email", "GPA", "Major"] } },
+  sheets: { Applicants: { columns: ["Name", "Email", "GPA"] } },
   tests,
-  ai: {
-    extract: Object.fromEntries(
-      APPLICANTS.map((a) => [a.resume, { name: a.name, gpa: a.gpa, major: a.major, skills: a.skills }]),
-    ),
-  },
+  ai: { extract: Object.fromEntries(APPLICANTS.map((a) => [a.resume, { name: a.name, gpa: a.gpa }])) },
   hints: [
-    "Pull the GPA, major and skills out of the resume first, then decide who gets an invite.",
-    "AI Extract (gpa as number, major as text, skills as list) → connect it to BOTH Add sheet row and a Filter (gpa ≥ 3.3 AND skills contains Excel) → Send email.",
+    "The GPA is buried in the resume text. Pull it out first, then decide who gets an invite.",
+    "AI Extract (read resume_text, fact: gpa as number) → Filter gpa · is at least · 3.3 → Send email to {{email}}.",
   ],
   reference,
   traps: [
     {
-      name: "greater than instead of ≥",
-      workflow: patch(reference, "f", {
-        conditions: [
-          { field: "gpa", op: "gt", value: "3.3" },
-          { field: "skills", op: "contains", value: "Excel" },
-        ],
-      }),
-      shouldFail: ["t5"],
-    },
-    {
-      name: "gpa extracted as text",
-      workflow: patch(reference, "x", {
-        fields: [
-          { name: "gpa", type: "text" },
-          { name: "major", type: "text" },
-          { name: "skills", type: "list" },
-        ],
-      }),
+      name: "greater than instead of at least",
+      workflow: patch(reference, "f", { conditions: [{ field: "gpa", op: "gt", value: "3.3" }] }),
       shouldFail: ["t4"],
     },
+    { name: "gpa extracted as text", workflow: patch(reference, "x", { fields: [{ name: "gpa", type: "text" }] }), shouldFail: ["t3"] },
     {
-      name: "filter before logging",
+      name: "no filter",
       workflow: {
         ...reference,
-        edges: reference.edges.filter((e) => !(e.source === "x" && e.target === "row")).concat({ id: "e-f-row", source: "f", sourceHandle: "kept", target: "row" }),
+        nodes: reference.nodes.filter((n) => n.id !== "f"),
+        edges: reference.edges
+          .filter((e) => e.source !== "f" && e.target !== "f")
+          .concat({ id: "e-x-invite", source: "x", sourceHandle: "out", target: "invite" }),
       },
-      shouldFail: ["t2", "t3"],
-    },
-    {
-      name: "only checks the resume for Excel",
-      workflow: patch(reference, "f", { conditions: [{ field: "resume_text", op: "contains", value: "Excel" }] }),
       shouldFail: ["t2"],
     },
   ],

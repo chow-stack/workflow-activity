@@ -2,7 +2,7 @@
 
 Gen AI Club automation meeting. Players build automation workflows on a Zapier-style canvas, run them against hidden test cases, and climb a live leaderboard. Eight graded levels.
 
-Status: v2 · 2026-10-27 (boss round and host passcode removed; Zapier-style light redesign)
+Status: v3 · 2026-10-27 (rooms with join codes, guided demo, re-paced levels, clearer results; v2: no boss round or passcode, Zapier-style light design)
 
 ---
 
@@ -42,76 +42,40 @@ Status: v2 · 2026-10-27 (boss round and host passcode removed; Zapier-style lig
 
 | Route | Who | Purpose |
 |---|---|---|
-| `/` | Player | Join with your name, or pick up where you left off |
-| `/play` | Player | Level brief + canvas + config panel + results |
-| `/board` | Projector | Live leaderboard and countdown |
-| `/host` | Organizer | Open controls (no passcode): start / pause / +5 min / end / reset |
+| `/` | Player | Kahoot-style join: room code → name. `/?room=CODE` prefills the code |
+| `/play` | Player | Demo or levels for the room they joined |
+| `/host` | Host | Create a room (gets a code + secret host key on that laptop), then run it: Lobby → Demo → Levels → Done |
+| `/board?room=CODE` | Projector | Lobby: giant code + joined names · Demo: progress · Levels: top 10 leaderboard |
+| `/demo` | Host | The warm-up level, local only, for presenting the walkthrough. Nothing is recorded |
 
-### 3.1 Session phases
-Stored in Supabase `session` row; every client subscribes via Realtime.
+### 3.1 Room phases
 
-| Phase | `/play` shows | `/board` shows |
+| Phase | Player screen | Board |
 |---|---|---|
-| `lobby` | "Waiting for the host to start" + player name | Joined players list |
-| `running` | Levels 1–8, countdown to `ends_at` | Leaderboard + countdown |
-| `ended` | Final score, read-only | Final standings |
-
-Host can pause (`running` → `paused`, stores remaining seconds) and resume.
-
----
+| `lobby` | "You're in" + look at the big screen | Join URL, code, names |
+| `demo` | Warm-up level (level 0). After passing: "Level 1 opens when the host starts the clock" | Demo title, task, `done/total` bar, names turn green |
+| `running` | Levels 1–8, countdown, hint button, rank | Leaderboard + countdown |
+| `paused` | Covered | Leaderboard, paused clock |
+| `ended` | Final score + rank | Final standings |
 
 ## 4. Player flow
 
-1. Player opens `/`, types their name (e.g. "Maya P."), clicks **Start**. Insert into `teams`; names are unique (case-insensitive). Taken name → "add your last initial".
-2. `team_id` + name stored in `localStorage`. Revisiting `/` with a stored team skips straight to `/play`.
-3. **Pick up where you left off** (laptop died / different browser): enter the exact name → fetch team id → completed levels restored from `completions`. Unsaved canvas work for the current level is lost. No auth; acceptable for a club meeting.
-4. Levels unlock in order. Solved levels can be reopened (read-only score, editable canvas).
-5. **Skip**: available after both hints are used on a level. Skipped = 0 points, next level unlocks.
-
-### localStorage (per player)
-`team`, `currentLevel`, `workflows[levelId]` (nodes + edges JSON, autosaved debounced 500ms), `hintsUsed[levelId]`.
-
----
+1. Enter the room code (validated against `rooms`; ended rooms are refused), then a name. Names are unique per room (case-insensitive).
+2. If the name is taken: "Add your last initial, or **continue as “Name”**" (rejoins that player, e.g. after switching laptops; completed levels come back from `completions`).
+3. `localStorage`: `wl.player` = `{ id, name, room }`; `wl.progress.<id>` = current level, workflows per level, hints, done, intros seen.
+4. Players who join after the demo skip it. Levels unlock in order; skipping (after both hints) gives 0 points.
 
 ## 5. Data model (Supabase)
 
-```sql
-create table session (
-  id int primary key default 1 check (id = 1),
-  phase text not null default 'lobby',      -- lobby | running | paused | ended
-  ends_at timestamptz,                      -- countdown target
-  paused_remaining_s int
-);
+- `rooms(code pk, phase, ends_at, paused_remaining_s)`: public read. Codes are 5 characters from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`.
+- `room_keys(code, host_key)`: no client access at all; only the functions below read it.
+- `teams(id, name, room_code)`: one row per player. Unique `(room_code, lower(name))`.
+- `completions(team_id, room_code, level 0–8, points, hints_used, skipped)`: level 0 = demo (no points). Inserts allowed for level 0 during `demo`/`running`, levels 1–8 only during `running`.
+- `create_room()` → `{ code, host_key }`. `host_room(code, host_key, action, minutes)`: `demo`, `start`, `pause`, `resume`, `add_time`, `end`, `lobby`, `reset`. Wrong key → error.
+- Realtime on `rooms`, `teams`, `completions`, filtered by room code.
+- Migrations: `0003` adds rooms (additive, old app keeps working). `0004` drops the old singleton `session`; apply it only after the rooms app is deployed.
 
-create table teams (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  created_at timestamptz default now()
-);
-create unique index teams_name_ci on teams (lower(name));
-
-create table completions (
-  team_id uuid references teams on delete cascade,
-  level int not null check (level between 1 and 8),
-  points int not null,
-  hints_used int not null default 0,
-  skipped boolean not null default false,
-  completed_at timestamptz default now(),
-  primary key (team_id, level)
-);
-
-```
-
-**RLS**
-- `anon`: `select` on all four tables; `insert` on `teams` (any phase but `ended`) and `completions` (only while `running`). No `update`/`delete`.
-- Host controls go through `host_action(action, minutes)`, a `security definer` function anyone can call. There is no passcode (user decision, 2026-10-27): anyone who finds `/host` can pause, end or reset the session. No service-role key in the app and no API routes.
-- Realtime enabled on `session`, `teams`, `completions`.
-
-**Env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Both are public by design.
-
-Grading is client-side, so scores are trust-based. Accepted.
-
----
+**Env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (public by design, must be set before the Vercel build).
 
 ## 6. Scoring
 
@@ -216,179 +180,21 @@ Each level supplies `aiFixtures`, keyed by the **exact source text** (trimmed). 
 
 ## 9. Levels
 
-Format per level: brief, palette, data, test cases (✱ = hidden until first run), expected outputs, traps the tests catch, hints, reference solution. Every level file also exports its **reference solution** and **trap solutions** for unit tests (§12).
+Each level adds exactly one idea on top of the previous ones. Full test data, reference solutions and trap solutions live in `src/levels/`.
 
-Assertion types:
-- `slack { channel, includes?: string[], includesNumber?: number[] }`
-- `email { to, subjectIncludes?, bodyIncludes?: string[], includesNumber?: number[] }`
-- `sheetRow { sheet, match: Record<column, value> }`
+| # | Level | New idea | Steps in the reference | Points |
+|---|---|---|---|---|
+| Demo | Your First Workflow | Triggers and actions (form → Slack #general) | 2 | 0 |
+| 1 | Club RSVP | Using the person's answers (field chips into a sheet row) | 2 | 100 |
+| 2 | Class Reminder | Schedules (weekly Monday 8 AM → Slack) | 2 | 100 |
+| 3 | Freshman Mentors | Filters (year equals Freshman → personalized email) | 3 | 200 |
+| 4 | Recruiting Inbox | Matching carefully ("ends with any of", lookalike domains) | 3 | 200 |
+| 5 | Urgent Inbox | AI Classify + If/Else (urgent → Slack, else → sheet) | 5 | 300 |
+| 6 | Resume Screener | AI Extract (GPA as a number, "3.45/4.0" edge case, ≥ 3.3) | 4 | 300 |
+| 7 | Low-Stock Alerts | Loops (Read sheet → For each → field-vs-field filter → Slack) | 5 | 400 |
+| 8 | Invoice Chaser | AI Write + Combine (reminders + one summary) | 8 | 400 |
 
-All matching is case-insensitive. `includesNumber` accepts `4250`, `4,250`, `4250.00`, `$4,250`. A test passes when every expected output is matched one-to-one **and** nothing extra was produced.
-
----
-
-### Level 1 · Club RSVP · Easy · 100
-**Brief:** People RSVP to Gen AI Club meetings on a form. Every RSVP should land in the RSVPs sheet automatically.
-**Teaches:** trigger → action.
-**Palette:** Form submitted, New email, Add sheet row, Slack message.
-**Form fields:** `name`, `email`, `year`, `dietary`.
-**Sheet:** `RSVPs` (Name, Email, Year).
-
-| Test | Input | Expected |
-|---|---|---|
-| 1 | Maya Patel, mpatel@iu.edu, Sophomore | Row (Maya Patel, mpatel@iu.edu, Sophomore) |
-| 2 | Jordan Lee, jlee@iu.edu, Junior | Row (Jordan Lee, …) |
-| 3 ✱ | Sam Ortiz, sortiz@iu.edu, Freshman | Row (Sam Ortiz, …) |
-
-**Traps:** typed a literal name instead of `{{name}}`; mapped email into Name.
-**Hints:** (1) "Which event starts this: an email, or a form?" (2) "In Add sheet row, click the field chips to fill each column."
-**Reference:** Form submitted → Add sheet row (Name=`{{name}}`, Email=`{{email}}`, Year=`{{year}}`).
-
----
-
-### Level 2 · Class Reminder · Easy · 100
-**Brief:** Your C204 study group wants a Slack reminder every Monday at 8:00 AM: "C204 quiz today."
-**Teaches:** schedule trigger, time as an input.
-**Palette:** Schedule, Form submitted, Slack message, Send email.
-**Channels:** `#c204-study`, `#general`.
-**Simulated window:** Sun 00:00 → Sat 23:59 of one week.
-
-| Test | Expected |
-|---|---|
-| 1 | Exactly 1 Slack message in `#c204-study`, includes "quiz", fired Monday 08:00 |
-
-**Traps:** every day → 7 messages; every hour → 168; wrong weekday or time; wrong channel.
-**Fail messages:** "Sent 7 messages this week; expected 1." / "Sent on Tuesday at 08:00; expected Monday."
-**Hints:** (1) "How often should this run: every day, or every week?" (2) "Schedule → every week → Monday → 08:00."
-**Reference:** Schedule (weekly, Mon, 08:00) → Slack `#c204-study` "C204 quiz today".
-
-Grading note: the test also asserts the fire time, so the engine records `fired_at` on each world output.
-
----
-
-### Level 3 · Personalized Welcome · Medium · 200
-**Brief:** New members fill out a sign-up form. Send each one a welcome email that greets them by first name and mentions their major.
-**Teaches:** mapping trigger data into text.
-**Palette:** Form submitted, Send email, Slack message, Add sheet row.
-**Form fields:** `first_name`, `last_name`, `email`, `major`.
-
-| Test | Input | Expected email |
-|---|---|---|
-| 1 | Ava Chen, achen@iu.edu, Finance | to achen@iu.edu, body includes "Ava", "Finance" |
-| 2 | Leo Brooks, lbrooks@iu.edu, Informatics | includes "Leo", "Informatics" |
-| 3 ✱ | Priya Shah, pshah@iu.edu, Finance + Business Analytics | includes "Priya", "Finance + Business Analytics" |
-
-**Traps:** hardcoded "Hi Ava" (fails tests 2–3); `{{last_name}}` instead of first; To left as a literal address.
-**Hints:** (1) "The email changes per person. Where does each person's info come from?" (2) "Use `{{first_name}}` and `{{major}}` in the body, and `{{email}}` in To."
-**Reference:** Form → Send email (To `{{email}}`, Subject "Welcome to Gen AI Club!", Body "Hi {{first_name}}, welcome! Great to have a {{major}} major on board.").
-
----
-
-### Level 4 · Recruiting Inbox · Medium · 200
-**Brief:** Your inbox is flooded. Only emails from these firms should be posted to Slack `#recruiting`, with the subject: **goldmansachs.com, jpmorgan.com, mckinsey.com**.
-**Teaches:** filters and edge cases.
-**Palette:** New email, Filter, If / Else, Slack message, Send email.
-**Channels:** `#recruiting`, `#general`.
-
-| Test | From | Subject | Expected |
-|---|---|---|---|
-| 1 | recruiting@goldmansachs.com | Superday invitation | Slack `#recruiting` includes "Superday invitation" |
-| 2 | campus@jpmorgan.com | Coffee chat next week | Slack includes "Coffee chat next week" |
-| 3 | news@iu.edu | Kelley weekly digest | nothing |
-| 4 ✱ | talent@mckinsey.com | Case interview prep session | Slack includes "Case interview prep session" |
-| 5 ✱ | careers@goldman-sachs-jobs.net | URGENT: claim your offer | nothing |
-| 6 ✱ | promo@jpmorgan.com.deals.biz | You've been selected | nothing |
-
-**Traps:** `contains "goldman"` (lets test 5 through); `contains "jpmorgan.com"` (lets test 6 through); no filter (6 messages).
-**Fail message (5):** "A lookalike domain reached #recruiting. Check exactly how the sender address ends."
-**Hints:** (1) "Check the end of the sender address, not just whether it mentions the firm." (2) "Filter: `from` · ends with any of · `goldmansachs.com, jpmorgan.com, mckinsey.com`."
-**Reference:** New email → Filter (`from` ends with any of list) → Slack `#recruiting` "{{from_name}}: {{subject}}".
-
----
-
-### Level 5 · Review Router · Hard · 300
-**Brief:** Hoosier Bean, a campus coffee shop, gets reviews through a form. Positive reviews go to the Testimonials sheet. Negative reviews alert `#customer-care` in Slack. Questions get an email reply to the reviewer.
-**Teaches:** AI classification + multi-way routing.
-**Palette:** Form submitted, AI Classify, Switch, If / Else, Add sheet row, Slack message, Send email.
-**Form fields:** `reviewer`, `email`, `review_text`.
-**Sheet:** `Testimonials` (Reviewer, Review). **Channels:** `#customer-care`, `#general`.
-
-| Test | Review (fixture label) | Expected |
-|---|---|---|
-| 1 | "Best cold brew on campus, the staff remember my order." (positive) | Row in Testimonials (Reviewer, Review) |
-| 2 | "My latte was cold and the line took 25 minutes." (negative) | Slack `#customer-care` includes reviewer name |
-| 3 | "Do you have oat milk, and are you open on Sundays?" (question) | Email to reviewer |
-| 4 ✱ | "Great, waited 40 minutes for a muffin. Love that for me." (negative) | Slack `#customer-care` |
-| 5 ✱ | "Super cozy spot for studying, love the playlist." (positive) | Row in Testimonials |
-| 6 ✱ | "Is the student discount still 10%?" (question) | Email to reviewer |
-
-**Traps:** labels missing `question` → tests 3/6 return `unknown`; classifying `reviewer` instead of `review_text` → all `unknown`; If/Else with 2 branches only.
-**Fail message (4):** "This sarcastic review was routed as positive. What did the AI label it?" (only shown if routed wrong).
-**Hints:** (1) "The AI can only pick from labels you give it. Are all three there?" (2) "AI Classify (`review_text`, labels `positive, negative, question`) → Switch on `label`."
-**Reference:** Form → AI Classify → Switch(`label`: positive / negative / question) → Add sheet row / Slack / Send email.
-
----
-
-### Level 6 · Resume Screener · Hard · 300
-**Brief:** You're screening analyst applications. Log **every** applicant in the Applicants sheet. Applicants with a **GPA of 3.3 or higher** who list **Excel** get an interview invite email.
-**Teaches:** AI extraction → fields that later steps depend on; fan-out.
-**Palette:** Form submitted, AI Extract, AI Classify, Filter, If / Else, Add sheet row, Send email.
-**Form fields:** `name`, `email`, `resume_text`.
-**Sheet:** `Applicants` (Name, Email, GPA, Major).
-
-| Test | Resume highlights (fixture) | Expected |
-|---|---|---|
-| 1 | GPA 3.7, Finance, Excel, PowerPoint | Row + invite |
-| 2 | GPA 3.2, Accounting, Excel | Row only |
-| 3 | GPA 3.8, Informatics, Python, SQL | Row only |
-| 4 ✱ | "GPA: 3.45/4.0", Business Analytics, Advanced Excel modeling | Row (GPA 3.45) + invite |
-| 5 ✱ | GPA 3.3, Finance, Excel, Bloomberg | Row + invite (boundary) |
-
-Invite assertion: `email { to: applicant, bodyIncludes: [first name] }`.
-
-**Traps:** filter before the sheet row (rejected applicants not logged); `>` instead of `≥` (fails test 5); filtering on `resume_text contains "Excel"` without GPA; GPA mapped as text "3.45/4.0" (test 4 sheet row expects 3.45).
-**Hints:** (1) "Pull the GPA, major and skills out of the resume first, then decide." (2) "AI Extract (`gpa` number, `major` text, `skills` list) → connect to BOTH Add sheet row and a Filter (`gpa ≥ 3.3` AND `skills contains Excel`) → Send email."
-**Reference:** Form → AI Extract → [Add sheet row] + [Filter → Send email].
-
----
-
-### Level 7 · Coffee Shop Restock · Expert · 400
-**Brief:** Every night at 9 PM, Hoosier Bean checks inventory. Anything **below** its reorder level goes into **one** order email to the supplier (orders@midwestroasters.example). If nothing is low, send nothing.
-**Teaches:** reading data, loops, "collect then act once."
-**Palette:** Schedule, Read sheet, For each, Filter, Combine, Send email, Slack message, If / Else.
-**Sheet:** `Inventory` (item, stock, reorder_level, unit).
-**Simulated window:** one Tuesday, 00:00 → 23:59.
-
-| Test | Inventory | Expected |
-|---|---|---|
-| 1 | 8 items; low: Oat milk (2/6 cartons), Espresso beans (3/10 lbs), Cups 12oz (40/100); Whole milk 6/6 (equal, not low) | Exactly 1 email to supplier, body includes "Oat milk", "Espresso beans", "Cups 12oz"; body does **not** include "Whole milk" |
-| 2 ✱ | Same 8 items, all fully stocked | No email |
-
-Assertion addition: `bodyExcludes?: string[]`.
-
-**Traps:** no Combine → 3 emails ("Sent 3 emails; the supplier wants one order."); `≤` instead of `<` (Whole milk included); daily at wrong time is fine for grading, but weekly → 0 runs on Tuesday; filter compares `stock` to a literal instead of the `reorder_level` field.
-**Hints:** (1) "Read the sheet, go through each row, keep the low ones, then bundle them before emailing." (2) "Schedule (daily 21:00) → Read sheet → For each `rows` → Filter `stock < {{reorder_level}}` → Combine (line template `{{item}}: {{stock}} {{unit}}`) → Send email body `{{lines}}`."
-**Reference:** as hint 2.
-
----
-
-### Level 8 · Invoice Chaser · Expert · 400
-**Brief:** A freelance bookkeeping business chases late invoices every morning at 9 AM. For each **unpaid** invoice **more than 30 days** overdue, email the client a polite reminder that mentions the client name, invoice number and amount. Then post **one** Slack summary in `#owner`: how many overdue invoices and the total outstanding.
-**Teaches:** loop + AI writing with context + summary after the loop.
-**Palette:** Schedule, Read sheet, For each, Filter, If / Else, AI Write, Combine, Send email, Slack message.
-**Sheet:** `Invoices` (invoice_id, client, client_email, amount, days_overdue, status).
-**AI Write template:** `Hi {client}, this is a friendly reminder that invoice {invoice_id} for ${amount} is now {days_overdue} days past due. Please let us know if you have any questions.`
-
-| Test | Invoices | Expected |
-|---|---|---|
-| 1 | 8 rows: qualifying INV-104 Lakeside Dental $1,200 / 45d, INV-107 Bloom Florals $850 / 62d, INV-111 Kirkwood Cycles $2,200 / 33d; excluded: INV-102 Paid 50d, INV-109 Unpaid exactly 30d, INV-112 Unpaid 12d, two Paid recent | 3 emails, each to the right `client_email`, body includes client name, invoice id, `includesNumber` amount. 1 Slack `#owner`, `includesNumber` [3, 4250] |
-| 2 ✱ | All paid | No emails, no Slack |
-
-**Traps:** filter `≥ 30` (INV-109 included); status filter missing (INV-102 included); AI Write instructions without `{{amount}}` → email says "the balance" ("The reminder doesn't mention the amount. Did the AI know it?"); Slack inside the loop → 3 messages; Combine without `sum of amount`.
-**Hints:** (1) "Two jobs after the filter: one per invoice (emails), one for all of them (summary). Connect the filter to both." (2) "Filter (`status equals Unpaid` AND `days_overdue > 30`) → [AI Write with `{{client}}`, `{{invoice_id}}`, `{{amount}}`, `{{days_overdue}}` → Send email To `{{client_email}}` Body `{{ai_text}}`] + [Combine (count, sum amount) → Slack `#owner` `{{count}} overdue invoices, ${{sum_amount}} outstanding`]."
-**Reference:** as hint 2.
-
----
+Every level has: `task` (one sentence), `skill` + `skillHow` (the new idea in 1–2 sentences), `goals` ("done when" checklist), 2 hints, and tests (some hidden) with per-test `failHint`.
 
 ## 10. Design
 
@@ -410,6 +216,9 @@ Zapier's system, light mode only, with genaiiu.com's logo and colors. Tokens liv
 - **Canvas:** cream dotted grid; steps are paper cards with a tinted icon, "N · Category" label, name, and a one-line summary or an amber to-do ("Pick a sheet."). Edges turn crimson and show item counts during a run.
 
 ### 10.1 Making it easy to follow
+- **Left panel order:** Your task → New: skill (how it works) → Done when → Example data. No separate "situation" block.
+- **Hints:** a Hint button in the top bar (popover with revealed hints, cost shown before revealing); revealed hints also appear in the left panel.
+- **Results panel:** test tabs across the top (✓/✗), then two columns per test: "Should happen" (each line ✓ done / ✗ didn't happen) and "Your workflow did" (each line ✓ / ✗ shouldn't happen), the test's tip, and "show the data this test sent in". The grader returns these as structured `expected`/`actual` lines.
 - **Top bar:** level stepper, countdown (turns crimson at 5 min, pulses in the last minute), points and live rank ("#3 of 41").
 - **Board:** top 10 players plus "+N more"; everyone sees their own rank on their screen.
 - **Controls:** every dropdown is a custom `Dropdown` (input-style button + paper menu in a portal, keyboard support; no native `<select>`, so no OS-styled popups); schedule uses outlined "Every hour / day / week" chips, round M–S day buttons, and a single time button ("8:00 AM") that opens a 30-minute list (hourly uses :00 / :15 / :30 / :45 chips); filter All/Any uses the same chips; host minutes is a − / + stepper.

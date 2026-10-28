@@ -20,7 +20,7 @@ export function standings(teams: TeamRow[], completions: CompletionRow[]): Stand
   const byId = new Map(rows.map((r) => [r.team.id, r]));
   for (const c of completions) {
     const r = byId.get(c.team_id);
-    if (!r) continue;
+    if (!r || c.level === 0) continue; // the demo doesn't count toward the board
     r.points += c.points;
     (c.skipped ? r.skipped : r.cleared).push(c.level);
     const t = Date.parse(c.completed_at);

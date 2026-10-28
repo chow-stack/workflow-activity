@@ -10,6 +10,7 @@ import { KEYS, load, save } from "./storage";
 export interface Team {
   id: string;
   name: string;
+  room: string; // room code
 }
 
 export interface Progress {
@@ -95,7 +96,8 @@ export const usePlay = create<PlayState>((set, get) => {
       const merged: Progress = { ...emptyProgress(), ...stored, done: { ...stored.done, ...(done ?? {}) } };
       // Resume at the first level that isn't finished yet.
       const firstOpen = [1, 2, 3, 4, 5, 6, 7, 8].find((l) => !merged.done[l]) ?? 8;
-      if (!merged.currentLevel || merged.currentLevel > firstOpen) merged.currentLevel = firstOpen;
+      // Level 0 is the demo, so check for a missing value rather than a falsy one.
+      if (merged.currentLevel == null || merged.currentLevel > firstOpen) merged.currentLevel = firstOpen;
       set({ team, progress: merged, grade: null, selectedId: null, anim: emptyAnim(), drawerOpen: false });
       save(KEYS.progress(team.id), merged);
     },

@@ -108,7 +108,7 @@ export interface World {
 // ---- Levels ----
 
 export type TriggerKind = "form" | "email" | "schedule";
-export type Tier = "easy" | "medium" | "hard" | "expert";
+export type Tier = "demo" | "easy" | "medium" | "hard" | "expert";
 
 export interface SlackExpect {
   channel: string;
@@ -175,9 +175,9 @@ export interface Level {
   title: string;
   tier: Tier;
   points: number;
-  skill: string; // short label for the new idea, e.g. "Filters"
-  scenario: string; // the situation, 1–2 sentences
-  task: string; // what to build, one sentence
+  skill: string; // the one new idea this level introduces, e.g. "Filters"
+  skillHow: string; // one or two sentences on how that idea works
+  task: string; // what to build, one plain sentence
   goals: string[]; // checklist the tests check
   trigger: TriggerKind;
   palette: NodeType[];

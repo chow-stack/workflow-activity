@@ -10,10 +10,11 @@ cp .env.example .env.local   # fill in the Supabase URL + publishable key
 npm run dev
 ```
 
-- `/` players join with their name (or pick up where they left off)
-- `/play` the canvas (laptop only)
-- `/board` projector leaderboard
-- `/host` host controls (start, pause, +5 min, end, reset). No passcode: anyone with the link can use it
+- `/` players join with the room code, then their name (`/?room=CODE` prefills it)
+- `/play` the warm-up demo, then the 8 levels (laptop only)
+- `/board?room=CODE` the big screen: join code, demo progress, leaderboard
+- `/demo` the warm-up level for the host to present (nothing is recorded)
+- `/host` create a room and run it: Lobby → Demo → Levels → Done. Only the laptop that created the room can control it
 
 ## Tests
 

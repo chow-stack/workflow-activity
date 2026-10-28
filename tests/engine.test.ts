@@ -78,9 +78,10 @@ describe("graph + run", () => {
   });
 
   it("combine with zero items produces nothing", () => {
-    const l7 = LEVELS[6];
-    const r = runTest(l7.reference!, l7, l7.tests[1]);
-    expect(r.world.emails).toEqual([]);
+    const l8 = LEVELS[7]; // Invoice Chaser: Combine feeds the #owner summary
+    const r = runTest(l8.reference, l8, l8.tests[1]);
+    expect(r.world.slack).toEqual([]);
+    expect(r.trace.nodes["sum"].ran).toBe(false);
   });
 
   it("stops runaway workflows", () => {
